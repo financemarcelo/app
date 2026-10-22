@@ -288,7 +288,7 @@ async function vistaCartera(actual, id) {
 
     <h2>Posiciones</h2>
     ${valoracion.posiciones.length ? `<div class="tarjeta tabla-envoltura"><table>
-      <thead><tr><th>Valor</th><th>Títulos</th><th>Precio medio</th><th>Precio</th><th>Valor</th><th>Plusvalía</th></tr></thead>
+      <thead><tr><th>Valor</th><th>Títulos</th><th>Coste medio (€)</th><th>Precio</th><th>Valor (€)</th><th>Plusvalía</th></tr></thead>
       <tbody>${valoracion.posiciones.map((p) => `<tr class="enlace" data-simbolo="${f.html(p.simbolo)}">
         <td><strong>${f.html(p.simbolo)}</strong></td><td>${f.titulos(p.titulos)}</td>
         <td>${f.eur(p.costeEur / p.titulos)}</td><td>${f.precio(p.precio, r.divisas[p.simbolo])}</td>
