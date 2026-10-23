@@ -5,7 +5,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   getFirestore, collection, collectionGroup, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, deleteDoc,
-  writeBatch, query, where, orderBy, serverTimestamp, arrayRemove,
+  writeBatch, query, where, orderBy, limit, serverTimestamp, arrayRemove, arrayUnion,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { firebaseConfig } from "./config.js";
 
@@ -19,5 +19,5 @@ export const alCambiarUsuario = (fn) => onAuthStateChanged(auth, fn);
 
 export {
   collection, collectionGroup, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, deleteDoc, writeBatch, query,
-  where, orderBy, serverTimestamp, arrayRemove,
+  where, orderBy, limit, serverTimestamp, arrayRemove, arrayUnion,
 };
