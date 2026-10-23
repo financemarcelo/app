@@ -4,8 +4,8 @@ import {
   getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
-  getFirestore, collection, doc, getDoc, getDocs, addDoc, deleteDoc, writeBatch, query, orderBy,
-  serverTimestamp,
+  getFirestore, collection, collectionGroup, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, deleteDoc,
+  writeBatch, query, where, orderBy, serverTimestamp, arrayRemove,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { firebaseConfig } from "./config.js";
 
@@ -17,4 +17,7 @@ export const entrar = () => signInWithPopup(auth, new GoogleAuthProvider());
 export const salir = () => signOut(auth);
 export const alCambiarUsuario = (fn) => onAuthStateChanged(auth, fn);
 
-export { collection, doc, getDoc, getDocs, addDoc, deleteDoc, writeBatch, query, orderBy, serverTimestamp };
+export {
+  collection, collectionGroup, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, deleteDoc, writeBatch, query,
+  where, orderBy, serverTimestamp, arrayRemove,
+};
