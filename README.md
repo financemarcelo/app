@@ -8,7 +8,8 @@ Se publica con GitHub Pages en <https://financemarcelo.github.io/app/>.
 ## Funciones
 
 - Inicio de sesión con cualquier cuenta de Google (Firebase Authentication). Al entrar se
-  guarda el perfil de la cuenta (nombre, correo, alta y último acceso).
+  guarda el perfil de la cuenta (nombre, correo, alta y último acceso). Una cuenta nueva
+  queda pendiente hasta que el administrador la aprueba; mientras tanto solo ve un aviso.
 - **Mercado**: nivel y variación del día del IBEX 35 y del Dow Jones; al elegir un índice,
   su gráfico (de un mes a 20 años). Último precio, variación del día y hora de la cotización
   de cada valor (unos 15 minutos de retraso), con búsqueda y filtro por índice.
@@ -22,9 +23,10 @@ Se publica con GitHub Pages en <https://financemarcelo.github.io/app/>.
   ven la cartera y registran operaciones a su nombre; pueden salir de ella. «Avisar por
   correo» abre el programa de correo con el enlace a la aplicación; la aplicación no envía
   correos.
-- **Administración** (solo administradores): lista de cuentas y eliminación de una cuenta.
-  Desde la petición, la cuenta ya no puede escribir; un proceso automático del repositorio
-  de datos desactiva su acceso y borra su perfil, sus carteras y sus operaciones.
+- **Administración** (solo administradores): cuentas pendientes de aprobación (aprobar o
+  rechazar) y cuentas con acceso (eliminar). Rechazar o eliminar retira el acceso en ese
+  momento; un proceso automático del repositorio de datos desactiva después la cuenta y
+  borra su perfil, sus carteras y sus operaciones.
 
 ## Cálculo de una cartera
 

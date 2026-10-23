@@ -24,7 +24,8 @@ export function quitar(miembros, correo) {
 export function enlaceAviso({ correos, cartera, url }) {
   const asunto = `Te he añadido a la cartera «${cartera}»`;
   const cuerpo = `Te he añadido como miembro de la cartera «${cartera}» en Carteras.\n\n`
-    + `Entra con la cuenta de Google de este correo:\n${url}\n`;
+    + `Entra con la cuenta de Google de este correo:\n${url}\n\n`
+    + "Si es la primera vez que entras, tu cuenta quedará pendiente hasta que el administrador la apruebe.\n";
   return `mailto:${correos.map(normalizar).join(",")}?subject=${encodeURIComponent(asunto)}`
     + `&body=${encodeURIComponent(cuerpo)}`;
 }

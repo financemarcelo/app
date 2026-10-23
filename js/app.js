@@ -15,28 +15,35 @@ const RANGO_INICIAL = 2;
 const DIAS_COTIZACION_ANTIGUA = 4;
 
 let usuario = null;
+let estado = null; // "administrador", "aprobada", "pendiente" o "eliminada"
 let administrador = false;
 let turno = 0;
 const filtroMercado = { indice: "", texto: "" };
 
 alCambiarUsuario(async (u) => {
   usuario = u;
-  administrador = false;
+  aplicarEstado(null);
   $("#usuario").hidden = !u;
-  $("#menu").hidden = !u;
-  $("#enlace-admin").hidden = true;
   $("#correo").textContent = u?.email ?? "";
   enrutar();
   if (!u) return;
-  datos.guardarPerfil(u).catch((e) => console.warn("Perfil sin guardar:", e));
-  const esAdmin = await datos.esAdministrador();
+  // El perfil se guarda antes de comprobar el estado para que el administrador vea la cuenta nueva.
+  await datos.guardarPerfil(u).catch((e) => console.warn("Perfil sin guardar:", e));
+  const nuevo = await datos.estadoCuenta(u);
   if (usuario !== u) return;
-  administrador = esAdmin;
-  $("#enlace-admin").hidden = !esAdmin;
-  if (esAdmin && location.hash.startsWith("#/admin")) enrutar();
+  aplicarEstado(nuevo);
+  enrutar();
 });
 window.addEventListener("hashchange", enrutar);
 $("#boton-salir").addEventListener("click", () => salir());
+
+/** Muestra el menú solo a las cuentas que pueden usar la aplicación. */
+function aplicarEstado(nuevo) {
+  estado = nuevo;
+  administrador = nuevo === "administrador";
+  $("#menu").hidden = !["administrador", "aprobada"].includes(nuevo);
+  $("#enlace-admin").hidden = !administrador;
+}
 
 const correoPropio = () => miembros.normalizar(usuario?.email);
 const iso = (marca) => marca?.toDate?.()?.toISOString();
@@ -58,6 +65,8 @@ async function intentar(accion) {
 async function enrutar() {
   const actual = ++turno;
   if (!usuario) return vistaAcceso();
+  if (!estado) return pintar(actual, `<p class="cargando">Cargando…</p>`);
+  if (estado === "pendiente" || estado === "eliminada") return vistaPendiente(actual);
   const [, seccion = "carteras", ...partes] = (location.hash || "#/carteras").split("/");
   const enMenu = { valor: "mercado", cartera: "carteras" }[seccion] ?? seccion;
   document.querySelectorAll("#menu a").forEach((a) => a.classList.toggle("activo", a.dataset.seccion === enMenu));
@@ -132,7 +141,7 @@ function vistaAcceso() {
     <p class="subtitulo">Crea carteras con acciones del IBEX 35 y del Dow Jones, compártelas con quien
       quieras y sigue su valor en euros.</p>
     <button class="boton" id="boton-entrar" type="button">Entrar con Google</button>
-    <p class="aviso">Sirve cualquier cuenta de Google.</p>
+    <p class="aviso">Sirve cualquier cuenta de Google. Las cuentas nuevas las aprueba el administrador.</p>
     <p class="error" id="error-acceso" hidden></p></section>`;
   $("#boton-entrar").addEventListener("click", async () => {
     try {
@@ -148,6 +157,22 @@ function vistaAcceso() {
       error.textContent = mensajes[e.code] ?? e.message;
       error.hidden = false;
     }
+  });
+}
+
+function vistaPendiente(actual) {
+  const eliminada = estado === "eliminada";
+  if (!pintar(actual, `<section class="acceso tarjeta">
+    <h1>${eliminada ? "Cuenta eliminada" : "Pendiente de aprobación"}</h1>
+    <p>${eliminada ? `El administrador ha eliminado la cuenta <strong>${f.html(usuario.email)}</strong>.`
+      : `La cuenta <strong>${f.html(usuario.email)}</strong> está registrada, pero el administrador
+         todavía no la ha aprobado.`}</p>
+    ${eliminada ? "" : `<p class="aviso">Cuando la apruebe, pulsa «Comprobar de nuevo».</p>
+      <button class="boton" id="comprobar" type="button">Comprobar de nuevo</button>`}</section>`)) return;
+  $("#comprobar")?.addEventListener("click", async (e) => {
+    e.target.disabled = true;
+    aplicarEstado(await datos.estadoCuenta(usuario));
+    enrutar();
   });
 }
 
@@ -414,8 +439,8 @@ async function vistaCartera(actual, propietario, id) {
         ${otros.length ? `<div><a class="boton boton-secundario" href="${f.html(miembros.enlaceAviso({ correos: otros, cartera: c.nombre, url: URL_APLICACION }))}">Avisar por correo</a></div>` : ""}
         <p class="error ancho" id="error-miembro" hidden></p></form>` : ""}
       <p class="aviso">Los miembros ven la cartera y registran operaciones a su nombre al entrar con la cuenta
-        de Google de ese correo. La aplicación no envía correos: «Avisar por correo» abre tu programa de
-        correo con el enlace ya escrito.</p>
+        de Google de ese correo; si es su primera vez, el administrador tiene que aprobar su cuenta. La
+        aplicación no envía correos: «Avisar por correo» abre tu programa de correo con el enlace ya escrito.</p>
     </div>
 
     ${esPropietario ? `<h2>Eliminar</h2>
@@ -516,20 +541,28 @@ async function vistaAdmin(actual) {
   if (!administrador) {
     return pintar(actual, `<h1>Administración</h1><p class="error">Solo para administradores.</p>`);
   }
-  const [cuentas, pedidas] = await Promise.all([datos.perfiles(), datos.bajas()]);
+  const [cuentas, aprobadas, pedidas] = await Promise.all([datos.perfiles(), datos.aprobaciones(), datos.bajas()]);
   cuentas.sort((a, b) => (iso(a.alta) ?? "").localeCompare(iso(b.alta) ?? ""));
+  const pendientes = cuentas.filter((u) => u.uid !== usuario.uid && !aprobadas[u.uid] && !pedidas[u.uid]);
+  const activas = cuentas.filter((u) => !pendientes.includes(u));
   const eliminadas = Object.values(pedidas).filter((b) => b.procesada);
+  const fila = (u, acciones) => `<tr><td>${f.html(u.nombre || "—")}</td><td>${f.html(u.correo)}</td>
+    <td>${f.fechaHora(iso(u.alta))}</td><td>${f.fechaHora(iso(u.ultimo_acceso))}</td><td>${acciones}</td></tr>`;
+  const boton = (accion, clase, texto, u) =>
+    `<button class="boton ${clase}" data-${accion}="${f.html(u.uid)}" data-correo="${f.html(u.correo)}" type="button">${texto}</button>`;
+  const tabla = (filas) => `<div class="tarjeta tabla-envoltura"><table>
+    <thead><tr><th>Nombre</th><th>Correo</th><th>Alta</th><th>Último acceso</th><th></th></tr></thead>
+    <tbody>${filas}</tbody></table></div>`;
   if (!pintar(actual, `<h1>Administración</h1>
-    <p class="subtitulo">${cuentas.length} ${cuentas.length === 1 ? "cuenta" : "cuentas"} registradas</p>
-    <div class="tarjeta tabla-envoltura"><table>
-      <thead><tr><th>Nombre</th><th>Correo</th><th>Alta</th><th>Último acceso</th><th></th></tr></thead>
-      <tbody>${cuentas.map((u) => `<tr><td>${f.html(u.nombre || "—")}</td><td>${f.html(u.correo)}</td>
-        <td>${f.fechaHora(iso(u.alta))}</td><td>${f.fechaHora(iso(u.ultimo_acceso))}</td>
-        <td>${u.uid === usuario.uid ? "Tú"
-          : pedidas[u.uid] ? "Eliminación pendiente"
-          : `<button class="boton boton-peligro" data-baja="${f.html(u.uid)}" data-correo="${f.html(u.correo)}" type="button">Eliminar</button>`}</td></tr>`).join("")}
-      </tbody></table></div>
-    <p class="aviso">Al eliminar una cuenta deja de poder escribir en ese momento. En la siguiente
+    <p class="subtitulo">${cuentas.length} ${cuentas.length === 1 ? "cuenta registrada" : "cuentas registradas"}</p>
+    <h2>Pendientes de aprobación</h2>
+    ${pendientes.length ? tabla(pendientes.map((u) => fila(u, `<div class="acciones">${boton("aprobar", "", "Aprobar", u)}
+        ${boton("baja", "boton-peligro", "Rechazar", u)}</div>`)).join(""))
+      : `<p class="vacio">No hay cuentas pendientes.</p>`}
+    <h2>Cuentas con acceso</h2>
+    ${tabla(activas.map((u) => fila(u, u.uid === usuario.uid ? "Tú"
+      : pedidas[u.uid] ? "Eliminación pendiente" : boton("baja", "boton-peligro", "Eliminar", u))).join(""))}
+    <p class="aviso">Rechazar o eliminar una cuenta le retira el acceso en ese momento. En la siguiente
       actualización de cotizaciones (cada 15 minutos en días laborables) se desactiva su acceso con Google y
       se borran su perfil, sus carteras y sus operaciones. No se puede deshacer.</p>
     ${eliminadas.length ? `<h2>Cuentas eliminadas</h2>
@@ -537,6 +570,14 @@ async function vistaAdmin(actual) {
       <tbody>${eliminadas.map((b) => `<tr><td>${f.html(b.correo)}</td><td>${f.fechaHora(iso(b.procesada))}</td></tr>`).join("")}
       </tbody></table></div>` : ""}`)) return;
 
+  contenido.querySelectorAll("[data-aprobar]").forEach((b) => b.addEventListener("click", async () => {
+    b.disabled = true;
+    await intentar(async () => {
+      await datos.aprobar(b.dataset.aprobar, b.dataset.correo);
+      enrutar();
+    });
+    b.disabled = false;
+  }));
   contenido.querySelectorAll("[data-baja]").forEach((b) => b.addEventListener("click", async () => {
     if (!confirm(`¿Eliminar la cuenta ${b.dataset.correo}? Se borrarán su perfil, sus carteras y sus operaciones, y no podrá volver a entrar.`)) return;
     b.disabled = true;

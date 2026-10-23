@@ -170,7 +170,7 @@ export async function borrarCartera(c) {
 // ── Administración ───────────────────────────────────────────────────────────
 
 /** Las reglas solo dejan leer administracion/… a los administradores. */
-export async function esAdministrador() {
+async function esAdministrador() {
   try {
     await getDoc(doc(db, "administracion", "acceso"));
     return true;
@@ -179,9 +179,28 @@ export async function esAdministrador() {
   }
 }
 
+/** Estado de la cuenta: "administrador", "aprobada", "pendiente" (de aprobación) o "eliminada". */
+export async function estadoCuenta(usuario) {
+  if (await esAdministrador()) return "administrador";
+  const [aprobacion, baja] = await Promise.all([getDoc(doc(db, "aprobados", usuario.uid)),
+                                                getDoc(doc(db, "bajas", usuario.uid))]);
+  if (baja.exists()) return "eliminada";
+  return aprobacion.exists() ? "aprobada" : "pendiente";
+}
+
 export async function perfiles() {
   const r = await getDocs(collection(db, "usuarios"));
   return r.docs.map((d) => ({ uid: d.id, ...d.data() }));
+}
+
+/** Cuentas aprobadas, por uid: {correo, fecha}. */
+export async function aprobaciones() {
+  const r = await getDocs(collection(db, "aprobados"));
+  return Object.fromEntries(r.docs.map((d) => [d.id, d.data()]));
+}
+
+export function aprobar(uid, correo) {
+  return setDoc(doc(db, "aprobados", uid), { correo, fecha: serverTimestamp() });
 }
 
 /** Eliminaciones pedidas, por uid: {correo, solicitada, procesada}. */
@@ -190,6 +209,10 @@ export async function bajas() {
   return Object.fromEntries(r.docs.map((d) => [d.id, d.data()]));
 }
 
+/** Pide la eliminación de una cuenta y le retira la aprobación, con lo que deja de usar la aplicación. */
 export function pedirBaja(uid, correo) {
-  return setDoc(doc(db, "bajas", uid), { correo, solicitada: serverTimestamp(), procesada: null });
+  const lote = writeBatch(db);
+  lote.set(doc(db, "bajas", uid), { correo, solicitada: serverTimestamp(), procesada: null });
+  lote.delete(doc(db, "aprobados", uid));
+  return lote.commit();
 }

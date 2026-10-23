@@ -116,6 +116,7 @@ label { display: block; font-size: 13px; color: var(--suave); margin-bottom: 4px
                padding: 6px 0; border-bottom: 1px solid var(--borde); overflow-wrap: anywhere; }
 .miembros .boton { padding: 4px 10px; }
 a.boton { display: inline-block; text-align: center; }
+.acciones { display: flex; gap: 8px; justify-content: flex-end; }
 
 .lista-carteras { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
 .lista-carteras a { color: inherit; }
