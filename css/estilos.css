@@ -106,6 +106,18 @@ label { display: block; font-size: 13px; color: var(--suave); margin-bottom: 4px
 .indicador .etiqueta { color: var(--suave); font-size: 13px; }
 .indicador .valor { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
 
+.indicador.seleccionable { cursor: pointer; }
+.indicador.seleccionable:hover { border-color: var(--acento); }
+#panel-indices { margin-bottom: 16px; }
+#panel-indices .filtros { margin-top: 12px; }
+
+.miembros { list-style: none; margin: 0 0 12px; padding: 0; }
+.miembros li { display: flex; justify-content: space-between; align-items: center; gap: 12px;
+               padding: 6px 0; border-bottom: 1px solid var(--borde); overflow-wrap: anywhere; }
+.miembros .boton { padding: 4px 10px; }
+a.boton { display: inline-block; text-align: center; }
+.acciones { display: flex; gap: 8px; justify-content: flex-end; }
+
 .lista-carteras { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
 .lista-carteras a { color: inherit; }
 .lista-carteras .nombre { font-weight: 600; }
