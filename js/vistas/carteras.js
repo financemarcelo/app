@@ -15,7 +15,6 @@ import { enlaceCartera, enlaceOperar, enlaceValor, etiquetaCompartida, autorOper
 import { moneda, en, dinero, dineroEntero, dineroSigno } from "../moneda.js";
 import { abrirApuntar } from "./apuntar.js";
 
-const PRIMERA_FECHA = "2006-01-02";
 const RANGOS = [["1M", 1 / 12], ["3M", 0.25], ["6M", 0.5], ["1A", 1], ["Inicio", null]];
 const FILTROS = [["todos", "Todos"], ["compra", "Compras"], ["venta", "Ventas"], ["dividendo", "Dividendos"], ["eventos", "Eventos"]];
 
@@ -40,23 +39,15 @@ export async function vistaNueva({ actual }) {
     <form class="panel fuerte formulario" id="nueva" style="max-width:760px">
       <label class="campo"><span>Nombre</span><input type="text" id="nombre" required maxlength="60" placeholder="Mi cartera"></label>
       <label class="campo"><span>Capital inicial (€)</span><input type="number" id="capital" min="1" step="1" required value="${CAPITAL_INICIAL_POR_DEFECTO}"></label>
-      <label class="campo"><span>Fecha de inicio</span><input type="date" id="fecha-inicio" required value="${f.hoy()}" min="${PRIMERA_FECHA}" max="${f.hoy()}"></label>
+      <label class="campo"><span>Fecha de inicio</span><input type="date" value="${f.hoy()}" disabled></label>
       <div><button class="boton" type="submit">Crear cartera</button></div>
-      <p class="aviso ancho" id="aviso-inicio">Empieza hoy. Con una fecha pasada, la cartera se reconstruye con los precios de cierre desde esa fecha.</p>
     </form>`)) return;
-  $("#fecha-inicio").addEventListener("input", (e) => {
-    $("#aviso-inicio").textContent = e.target.value && e.target.value < f.hoy()
-      ? `Las operaciones se registran desde Operar, con «Cierre de un día anterior». ${avisoSupervivencia()}`
-      : "Empieza hoy. Con una fecha pasada, la cartera se reconstruye con los precios de cierre desde esa fecha.";
-  });
   $("#nueva").addEventListener("submit", async (e) => {
     e.preventDefault();
     botonDe(e).disabled = true;
     await intentar(async () => {
-      const fecha = $("#fecha-inicio").value;
       const nueva = await datos.crearCartera(sesion.usuario, {
-        nombre: $("#nombre").value.trim(), capitalInicial: Number($("#capital").value),
-        fechaInicio: fecha >= PRIMERA_FECHA && fecha <= f.hoy() ? fecha : f.hoy() });
+        nombre: $("#nombre").value.trim(), capitalInicial: Number($("#capital").value), fechaInicio: f.hoy() });
       invalidar();
       location.hash = enlaceCartera(nueva);
     });

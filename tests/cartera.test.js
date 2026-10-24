@@ -146,25 +146,6 @@ test("la comisión sale del efectivo y entra en el coste", () => {
                                                                      importeEur: 98, comisionEur: 5 }), "No hay efectivo suficiente.");
 });
 
-test("operación con fecha pasada: se aplica en su fecha y se comprueban las posteriores", () => {
-  const base = { capitalInicial: 1000, eventos: {}, divisas, tipoCambio, cierreAnterior: sinCierre };
-  // Compra posterior ya registrada (2026-03-01, 800 €) y una compra nueva con fecha anterior.
-  const posterior = op("2026-03-01", "SAN.MC", "compra", 80, 10, 1);
-  const nueva = op("2026-01-05", "SAN.MC", "compra", 30, 10, 2);
-  const e = reconstruir({ ...base, operaciones: [posterior, nueva] });
-  assert.equal(e.posiciones["SAN.MC"].desde, "2026-01-05");
-  assert.equal(e.problema.op, posterior);   // la compra del 1 de marzo ya no tendría efectivo
-  assert.match(e.problema.texto, /efectivo/);
-  assert.equal(reconstruir({ ...base, operaciones: [posterior, op("2026-01-05", "SAN.MC", "compra", 20, 10, 2)] }).problema, null);
-});
-
-test("venta con fecha pasada sin títulos en esa fecha", () => {
-  const e = reconstruir({ capitalInicial: 1000, eventos: {}, divisas, tipoCambio, cierreAnterior: sinCierre,
-                          operaciones: [op("2026-03-01", "SAN.MC", "compra", 10, 10, 1), op("2026-02-01", "SAN.MC", "venta", 5, 10, 2)] });
-  assert.equal(e.problema.fecha, "2026-02-01");
-  assert.match(e.problema.texto, /Solo hay 0 títulos/);
-});
-
 test("equivalentes en dólares al tipo de cada fecha", () => {
   const cambio = (fecha) => (fecha < "2026-02-01" ? 1.1 : 1.2);
   const compra = { ...op("2026-01-05", "SAN.MC", "compra", 100, 10), eurusd: 1.1, comision_eur: 5 };

@@ -25,15 +25,10 @@ Se publica con GitHub Pages en <https://financemarcelo.github.io/app/>.
   dividendos, ajustes y comisiones), evolución en base 100 frente al IBEX 35 o al Dow Jones,
   reparto por mercado, sector y divisa, posiciones, movimientos filtrables, miembros,
   cambio de nombre, eliminación y exportación a CSV. Alta de carteras nuevas con un
-  capital inicial en euros y una fecha de inicio desde el 2 de enero de 2006: una cartera
-  que empieza en el pasado se reconstruye con los cierres de cada día y muestra el aviso
-  de sesgo de supervivencia (la lista de valores es la composición actual de los índices).
-- **Operar**: elección de la cartera y del valor, compra o venta por títulos o por importe,
-  al último precio o al cierre de un día anterior (desde la fecha de inicio de la cartera,
-  con el tipo de cambio del BCE de ese día), resumen con la comisión simulada y efecto en
-  la cartera de hoy. Una operación con fecha pasada se comprueba contra todas las
-  posteriores: no se admite si alguna deja de tener efectivo o títulos suficientes. Se llega desde una cartera, desde
-  la ficha de un valor o desde la barra inferior del móvil.
+  capital inicial en euros, que empiezan el día de su creación.
+- **Operar**: elección de la cartera y del valor, compra o venta por títulos o por importe
+  al último precio, resumen con la comisión simulada y efecto en la cartera. Se llega desde
+  una cartera, desde la ficha de un valor o desde la barra inferior del móvil.
 - **Mercado**: estado de las bolsas de Madrid y Nueva York, tipo euro-dólar, índices con su
   gráfico y amplitud del día, lista de valores con filtro por índice, sector y seguimiento,
   orden, rango de 52 semanas, rentabilidad por dividendo y mapa de calor.
@@ -98,6 +93,10 @@ mercado. Cada cartera se guarda bajo la cuenta de su propietario
 reglas de Firestore solo dejan leerla a esos correos y registrar operaciones a los miembros,
 a nombre de quien las hace. Las preferencias se guardan en
 `usuarios/{uid}/ajustes/preferencias` y los cuadernos en `cuadernos/{id}`.
+
+Los precios, dividendos y tipos de cambio se guardan desde el primer día disponible, pero la
+aplicación los lee y los muestra desde 2006 (`js/datos.js`), para que todos los valores
+cubran el mismo periodo.
 
 Las carteras calculadas se guardan en memoria durante un minuto o hasta la siguiente
 escritura; la cartera abierta se calcula siempre de nuevo.

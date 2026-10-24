@@ -6,6 +6,11 @@ import {
 } from "./firebase.js";
 import { enEscalaDeHoy } from "./calculos.js";
 
+// Los datos de mercado se guardan desde el primer día disponible, pero la aplicación los muestra
+// desde 2006: todas las lecturas de precios, tipos de cambio y eventos empiezan en este año.
+const PRIMER_ANIO = 2006;
+const PRIMERA_FECHA = `${PRIMER_ANIO}-01-01`;
+
 const cache = new Map();
 const CADUCIDAD_MS = 60_000; // cotizaciones y año en curso: se vuelven a leer tras un minuto
 
@@ -58,16 +63,18 @@ export async function actualizaciones() {
            cambio: cambio?.actualizado?.toDate?.(), fechaCambio: cambio?.fecha };
 }
 
-/** Ficha del valor con sus dividendos y desdoblamientos. */
-export function fichaValor(simbolo) {
-  return leer(`valores/${simbolo}`);
+/** Ficha del valor con sus dividendos y desdoblamientos desde 2006. */
+export async function fichaValor(simbolo) {
+  const d = await leer(`valores/${simbolo}`);
+  const desde2006 = (lista) => (lista ?? []).filter((x) => x.fecha >= PRIMERA_FECHA);
+  return d && { ...d, dividendos: desde2006(d.dividendos), desdoblamientos: desde2006(d.desdoblamientos) };
 }
 
 /** Sesiones diarias guardadas bajo `base`/precios entre dos años: {fechas, cierres, cierresAjustados}. */
 async function serieDiaria(base, desdeAnio, hastaAnio) {
   const anioActual = new Date().getUTCFullYear();
   const anios = [];
-  for (let a = desdeAnio; a <= hastaAnio; a++) anios.push(a);
+  for (let a = Math.max(desdeAnio, PRIMER_ANIO); a <= hastaAnio; a++) anios.push(a);
   const docs = await Promise.all(anios.map((a) => leer(`${base}/precios/${a}`, { caduca: a === anioActual })));
   const r = { fechas: [], cierres: [], cierresAjustados: [] };
   for (const d of docs) {
@@ -93,7 +100,7 @@ export const sesionesIndice = (indice, desdeAnio, hastaAnio) => serieDiaria(`ind
 export async function serieTipoCambio(desdeAnio, hastaAnio) {
   const anioActual = new Date().getUTCFullYear();
   const r = { fechas: [], valores: [] };
-  for (let a = desdeAnio; a <= hastaAnio; a++) {
+  for (let a = Math.max(desdeAnio, PRIMER_ANIO); a <= hastaAnio; a++) {
     const d = await leer(`tipos_cambio/EURUSD/anios/${a}`, { caduca: a === anioActual });
     if (!d) continue;
     const serie = JSON.parse(d.datos);
