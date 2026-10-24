@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { normalizar, valido, anadir, quitar, enlaceAviso, MAX_MIEMBROS } from "../js/miembros.js";
+import { normalizar, valido, anadir, quitar, enlaceAviso, enlaceAvisoCuaderno, MAX_MIEMBROS } from "../js/miembros.js";
 
 test("normaliza y valida correos", () => {
   assert.equal(normalizar("  Ana@Ejemplo.COM "), "ana@ejemplo.com");
@@ -27,4 +27,13 @@ test("enlace de aviso por correo", () => {
   const parametros = new URLSearchParams(enlace.split("?")[1]);
   assert.equal(parametros.get("subject"), "Te he añadido a la cartera «Común & Cía»");
   assert.match(parametros.get("body"), /https:\/\/financemarcelo\.github\.io\/app\//);
+});
+
+test("enlace de aviso de un cuaderno", () => {
+  const enlace = enlaceAvisoCuaderno({ correos: ["Ana@ejemplo.org"], cuaderno: "Dividendos y precio",
+                                       url: "https://financemarcelo.github.io/app/#/cuaderno/abc" });
+  assert.ok(enlace.startsWith("mailto:ana@ejemplo.org?subject="));
+  const parametros = new URLSearchParams(enlace.split("?")[1]);
+  assert.equal(parametros.get("subject"), "Te he invitado al cuaderno «Dividendos y precio»");
+  assert.match(parametros.get("body"), /#\/cuaderno\/abc/);
 });

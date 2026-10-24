@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { aEuros, reconstruir, valorar, validarOperacion, serieValor, indiceCierres, serieHasta,
-         ultimoIndiceHasta } from "../js/cartera.js";
+         ultimoIndiceHasta, comisionEur } from "../js/cartera.js";
 
 const divisas = { "SAN.MC": "EUR", AAPL: "USD", MMM: "USD" };
 const tipoCambio = () => 1.25; // dólares por euro
@@ -123,4 +123,25 @@ test("búsquedas por fecha", () => {
   const fx = serieHasta({ fechas: ["2026-01-02", "2026-01-05"], valores: [1.1, 1.2] });
   assert.equal(fx("2026-01-04"), 1.1);
   assert.equal(fx("2025-12-31"), 1.1);
+});
+
+test("comisión simulada: porcentaje con mínimo y máximo", () => {
+  assert.equal(comisionEur(1600, { activa: true, porcentaje: 0.1, minimo: 5 }), 5);
+  assert.equal(comisionEur(20000, { activa: true, porcentaje: 0.1, minimo: 5 }), 20);
+  assert.equal(comisionEur(20000, { activa: true, porcentaje: 0.1, minimo: 5, maximo: 15 }), 15);
+  assert.equal(comisionEur(20000, { activa: false, porcentaje: 0.1 }), 0);
+  assert.equal(comisionEur(20000, undefined), 0);
+});
+
+test("la comisión sale del efectivo y entra en el coste", () => {
+  const compra = { ...op("2026-01-05", "SAN.MC", "compra", 100, 10), comision_eur: 5 };
+  const venta = { ...op("2026-02-01", "SAN.MC", "venta", 50, 12), comision_eur: 5 };
+  const e = reconstruir({ capitalInicial: 10000, eventos: {}, divisas, tipoCambio, cierreAnterior: sinCierre,
+                          operaciones: [compra, venta] });
+  cerca(e.efectivo, 10000 - 1005 + 600 - 5);
+  cerca(e.posiciones["SAN.MC"].costeEur, 502.5);
+  cerca(e.resultadoRealizadoEur, 600 - 5 - 502.5);
+  cerca(e.comisionesEur, 10);
+  assert.equal(validarOperacion({ efectivo: 100, posiciones: {} }, { tipo: "compra", simbolo: "SAN.MC", titulos: 1,
+                                                                     importeEur: 98, comisionEur: 5 }), "No hay efectivo suficiente.");
 });

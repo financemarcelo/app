@@ -10,6 +10,8 @@
 // - «ajuste» (ampliación con derechos, dividendo en acciones, escisión) no cambia los
 //   títulos: se abona en efectivo el valor que pierde la acción,
 //   títulos × cierre anterior × (1 − denominador/numerador).
+// - La comisión simulada de una operación (comision_eur) sale del efectivo: en una compra se
+//   suma al coste; en una venta se resta de lo cobrado.
 
 export function aEuros(importe, divisa, eurusd) {
   if (divisa === "EUR") return importe;
@@ -55,7 +57,7 @@ function sucesos(operaciones, eventos, simbolosOperados) {
  */
 export function reconstruir({ capitalInicial, operaciones, eventos, divisas, tipoCambio, cierreAnterior,
                               hasta = "9999-12-31" }) {
-  const estado = { efectivo: capitalInicial, posiciones: {}, dividendosEur: 0, ajustesEur: 0,
+  const estado = { efectivo: capitalInicial, posiciones: {}, dividendosEur: 0, ajustesEur: 0, comisionesEur: 0,
                    resultadoRealizadoEur: 0, movimientos: [] };
   const operados = new Set(operaciones.map((o) => o.simbolo));
 
@@ -73,6 +75,7 @@ export function reconstruir({ capitalInicial, operaciones, eventos, divisas, tip
       estado.efectivo += eur;
       estado.dividendosEur += eur;
       estado.movimientos.push({ fecha: s.fecha, tipo: "dividendo", simbolo, importeEur: eur,
+                                titulos: pos.titulos, porTitulo: s.importe, divisa: divisas[simbolo],
                                 detalle: `${fmt(s.importe)} ${divisas[simbolo]} por título` });
     } else if (s.tipo === "desdoblamiento") {
       const antes = pos.titulos;
@@ -94,26 +97,38 @@ export function reconstruir({ capitalInicial, operaciones, eventos, divisas, tip
 }
 
 function aplicarOperacion(estado, op) {
-  const pos = (estado.posiciones[op.simbolo] ??= { titulos: 0, costeEur: 0 });
+  const pos = (estado.posiciones[op.simbolo] ??= { titulos: 0, costeEur: 0, desde: op.fecha_mercado });
+  const comision = op.comision_eur ?? 0;
+  estado.comisionesEur += comision;
   if (op.tipo === "compra") {
     pos.titulos += op.titulos;
-    pos.costeEur += op.importe_eur;
-    estado.efectivo -= op.importe_eur;
+    pos.costeEur += op.importe_eur + comision;
+    estado.efectivo -= op.importe_eur + comision;
   } else {
     const costeVendido = pos.titulos > 0 ? pos.costeEur * (op.titulos / pos.titulos) : 0;
     pos.titulos -= op.titulos;
     pos.costeEur -= costeVendido;
-    estado.efectivo += op.importe_eur;
-    estado.resultadoRealizadoEur += op.importe_eur - costeVendido;
+    estado.efectivo += op.importe_eur - comision;
+    estado.resultadoRealizadoEur += op.importe_eur - comision - costeVendido;
     if (pos.titulos <= 1e-9) delete estado.posiciones[op.simbolo];
   }
 }
 
+/** Comisión simulada de una operación según las preferencias: porcentaje con mínimo y máximo. */
+export function comisionEur(importeEur, comision) {
+  if (!comision?.activa || !(importeEur > 0)) return 0;
+  let c = importeEur * (comision.porcentaje ?? 0) / 100;
+  if (comision.minimo != null) c = Math.max(c, comision.minimo);
+  if (comision.maximo != null) c = Math.min(c, comision.maximo);
+  return Math.round(c * 100) / 100;
+}
+
 /** Comprueba una operación antes de guardarla. Devuelve un texto de error o null. */
-export function validarOperacion(estado, { tipo, simbolo, titulos, importeEur }) {
+export function validarOperacion(estado, { tipo, simbolo, titulos, importeEur, comisionEur: comision = 0 }) {
   if (!Number.isFinite(titulos) || titulos <= 0) return "El número de títulos debe ser mayor que cero.";
   if (!Number.isInteger(titulos)) return "El número de títulos debe ser entero.";
-  if (tipo === "compra" && importeEur > estado.efectivo + 1e-6) return "No hay efectivo suficiente.";
+  if (tipo === "compra" && importeEur + comision > estado.efectivo + 1e-6) return "No hay efectivo suficiente.";
+  if (tipo === "venta" && comision > importeEur + estado.efectivo + 1e-6) return "No hay efectivo para la comisión.";
   if (tipo === "venta") {
     const disponibles = estado.posiciones[simbolo]?.titulos ?? 0;
     if (titulos > disponibles + 1e-9) return `Solo hay ${fmt(disponibles)} títulos para vender.`;

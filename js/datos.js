@@ -2,7 +2,7 @@
 // repositorio de datos (ARQUITECTURA.md).
 import {
   db, doc, getDoc, getDocs, setDoc, updateDoc, collection, collectionGroup, addDoc, deleteDoc, writeBatch, query,
-  where, orderBy, serverTimestamp, arrayRemove,
+  where, orderBy, limit, serverTimestamp, arrayRemove, arrayUnion,
 } from "./firebase.js";
 
 const cache = new Map();
@@ -38,6 +38,23 @@ export async function cotizacionesIndices() {
 
 export async function tipoCambioActual() {
   return leer("mercado/eurusd", { caduca: true });
+}
+
+/**
+ * Indicadores diarios por valor e índice (52 semanas, variación a un año, rentabilidad por
+ * dividendo, rentabilidad de cada año…): {valores: {simbolo: {...}}, indices: {indice: {...}}}.
+ */
+export async function estadisticas() {
+  const d = await leer("mercado/estadisticas", { caduca: true });
+  return d ? JSON.parse(d.datos) : { valores: {}, indices: {} };
+}
+
+/** Momento de la última carga de cada dato de mercado (marca `actualizado` del documento). */
+export async function actualizaciones() {
+  const [valores, cotizaciones, cambio] = await Promise.all([
+    leer("mercado/valores"), leer("mercado/cotizaciones", { caduca: true }), leer("mercado/eurusd", { caduca: true })]);
+  return { precios: valores?.actualizado?.toDate?.(), cotizaciones: cotizaciones?.actualizado?.toDate?.(),
+           cambio: cambio?.actualizado?.toDate?.(), fechaCambio: cambio?.fecha };
 }
 
 /** Ficha del valor con sus dividendos y desdoblamientos. */
@@ -83,6 +100,11 @@ export async function serieTipoCambio(desdeAnio, hastaAnio) {
 
 const correoDe = (usuario) => usuario.email.toLowerCase();
 
+export async function perfil(uid) {
+  const d = await getDoc(doc(db, "usuarios", uid));
+  return d.exists() ? d.data() : null;
+}
+
 /** Crea o actualiza el perfil de la cuenta al entrar. */
 export async function guardarPerfil(usuario) {
   const ref = doc(db, "usuarios", usuario.uid);
@@ -101,7 +123,23 @@ const RUTA_CARTERA = /^usuarios\/([^/]+)\/carteras\/[^/]+$/;
 function deDocumento(d) {
   const datos = d.data();
   return { id: d.id, ruta: d.ref.path, ...datos,
-           propietario: datos.propietario ?? d.ref.path.match(RUTA_CARTERA)?.[1], miembros: datos.miembros ?? [] };
+           propietario: datos.propietario ?? d.ref.path.match(RUTA_CARTERA)?.[1], miembros: datos.miembros ?? [],
+           lectores: datos.lectores ?? [] };
+}
+
+/** Cartera por su ruta (usuarios/{uid}/carteras/{id}). */
+export async function carteraPorRuta(ruta) {
+  const d = await getDoc(doc(db, ruta));
+  return d.exists() ? deDocumento(d) : null;
+}
+
+export function renombrarCartera(c, nombre) {
+  return updateDoc(doc(db, c.ruta), { nombre });
+}
+
+/** Correos con lectura de la cartera por los cuadernos en los que está vinculada. */
+export function cambiarLectores(c, lectores) {
+  return updateDoc(doc(db, c.ruta), { lectores });
 }
 
 /** Carteras propias y compartidas con la cuenta, de la más antigua a la más reciente. */
@@ -165,6 +203,126 @@ export async function borrarCartera(c) {
   ops.docs.forEach((d) => lote.delete(d.ref));
   await lote.commit();
   await deleteDoc(doc(db, c.ruta));
+}
+
+// ── Preferencias ─────────────────────────────────────────────────────────────
+
+export const PREFERENCIAS_INICIALES = {
+  seguimiento: [], comision: { activa: false, porcentaje: 0.1, minimo: 5, maximo: null },
+  tema: "automatico", variaciones: "porcentaje", inicio: "inicio", densidad: "comoda",
+};
+
+const rutaPreferencias = (usuario) => doc(db, "usuarios", usuario.uid, "ajustes", "preferencias");
+
+export async function preferencias(usuario) {
+  const d = await getDoc(rutaPreferencias(usuario));
+  const datos = d.exists() ? d.data() : {};
+  return { ...PREFERENCIAS_INICIALES, ...datos,
+           comision: { ...PREFERENCIAS_INICIALES.comision, ...(datos.comision ?? {}) } };
+}
+
+export function guardarPreferencias(usuario, cambios) {
+  return setDoc(rutaPreferencias(usuario), { ...cambios, actualizado: serverTimestamp() }, { merge: true });
+}
+
+// ── Cuadernos ────────────────────────────────────────────────────────────────
+// cuadernos/{id}: título, descripción, propietario, miembros y editores (correos) y carteras
+// vinculadas (rutas). Notas en cuadernos/{id}/notas y comentarios en …/notas/{nota}/comentarios.
+
+const autorDe = (usuario) => ({ uid: usuario.uid, correo: correoDe(usuario), nombre: (usuario.displayName ?? "").slice(0, 100) });
+const conId = (d) => ({ id: d.id, ...d.data() });
+
+export async function cuadernos(usuario) {
+  const r = await getDocs(query(collection(db, "cuadernos"), where("miembros", "array-contains", correoDe(usuario))));
+  return r.docs.map(conId).sort((a, b) => (a.creado?.toMillis?.() ?? 0) - (b.creado?.toMillis?.() ?? 0));
+}
+
+export async function cuaderno(id) {
+  const d = await getDoc(doc(db, "cuadernos", id));
+  return d.exists() ? conId(d) : null;
+}
+
+export async function crearCuaderno(usuario, { titulo, descripcion }) {
+  const correo = correoDe(usuario);
+  const ref = await addDoc(collection(db, "cuadernos"), {
+    titulo, descripcion, propietario: usuario.uid, miembros: [correo], editores: [correo], carteras: [],
+    creado: serverTimestamp(),
+  });
+  return ref.id;
+}
+
+/** Cambios del propietario: título, descripción, miembros y editores. */
+export function actualizarCuaderno(id, cambios) {
+  return updateDoc(doc(db, "cuadernos", id), cambios);
+}
+
+export function vincularCarteraEnCuaderno(id, ruta) {
+  return updateDoc(doc(db, "cuadernos", id), { carteras: arrayUnion(ruta) });
+}
+
+export function salirDeCuaderno(id, usuario) {
+  const correo = correoDe(usuario);
+  return updateDoc(doc(db, "cuadernos", id), { miembros: arrayRemove(correo), editores: arrayRemove(correo) });
+}
+
+export async function borrarCuaderno(id) {
+  const notasCuaderno = await getDocs(collection(db, "cuadernos", id, "notas"));
+  for (const n of notasCuaderno.docs) await borrarNota(id, n.id);
+  await deleteDoc(doc(db, "cuadernos", id));
+}
+
+export async function notas(cuadernoId) {
+  const r = await getDocs(query(collection(db, "cuadernos", cuadernoId, "notas"), orderBy("creada", "desc")));
+  return r.docs.map(conId);
+}
+
+/** Notas que mencionan un valor en los cuadernos dados (las más recientes de cada uno). */
+export async function notasSobreValor(listaCuadernos, simbolo) {
+  const grupos = await Promise.all(listaCuadernos.map(async (c) => {
+    const r = await getDocs(query(collection(db, "cuadernos", c.id, "notas"),
+                                  where("valores", "array-contains", simbolo), limit(5)));
+    return r.docs.map((d) => ({ ...conId(d), cuaderno: c }));
+  }));
+  return grupos.flat().sort((a, b) => (b.creada?.toMillis?.() ?? 0) - (a.creada?.toMillis?.() ?? 0));
+}
+
+export function crearNota(cuadernoId, usuario, { tipo, texto, valores = [], carteras = [], grafico = null }) {
+  return addDoc(collection(db, "cuadernos", cuadernoId, "notas"), {
+    tipo, texto, valores, carteras, grafico, estado: tipo === "hipotesis" ? "pendiente" : null,
+    autor: autorDe(usuario), creada: serverTimestamp(),
+  });
+}
+
+export function editarNota(cuadernoId, notaId, texto) {
+  return updateDoc(doc(db, "cuadernos", cuadernoId, "notas", notaId), { texto, editada: serverTimestamp() });
+}
+
+export function cambiarEstadoNota(cuadernoId, notaId, estado) {
+  return updateDoc(doc(db, "cuadernos", cuadernoId, "notas", notaId), { estado });
+}
+
+export async function borrarNota(cuadernoId, notaId) {
+  const lista = await getDocs(collection(db, "cuadernos", cuadernoId, "notas", notaId, "comentarios"));
+  const lote = writeBatch(db);
+  lista.docs.forEach((d) => lote.delete(d.ref));
+  lote.delete(doc(db, "cuadernos", cuadernoId, "notas", notaId));
+  await lote.commit();
+}
+
+export async function comentarios(cuadernoId, notaId) {
+  const r = await getDocs(query(collection(db, "cuadernos", cuadernoId, "notas", notaId, "comentarios"),
+                                orderBy("creado")));
+  return r.docs.map(conId);
+}
+
+export function comentar(cuadernoId, notaId, usuario, texto) {
+  return addDoc(collection(db, "cuadernos", cuadernoId, "notas", notaId, "comentarios"), {
+    texto, autor: autorDe(usuario), creado: serverTimestamp(),
+  });
+}
+
+export function borrarComentario(cuadernoId, notaId, comentarioId) {
+  return deleteDoc(doc(db, "cuadernos", cuadernoId, "notas", notaId, "comentarios", comentarioId));
 }
 
 // ── Administración ───────────────────────────────────────────────────────────

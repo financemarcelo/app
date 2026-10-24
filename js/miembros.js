@@ -29,3 +29,13 @@ export function enlaceAviso({ correos, cartera, url }) {
   return `mailto:${correos.map(normalizar).join(",")}?subject=${encodeURIComponent(asunto)}`
     + `&body=${encodeURIComponent(cuerpo)}`;
 }
+
+/** Enlace de aviso para un cuaderno compartido. */
+export function enlaceAvisoCuaderno({ correos, cuaderno, url }) {
+  const asunto = `Te he invitado al cuaderno «${cuaderno}»`;
+  const cuerpo = `Te he invitado al cuaderno «${cuaderno}» en Carteras, para apuntar ideas, hipótesis y resultados.\n\n`
+    + `Entra con la cuenta de Google de este correo:\n${url}\n\n`
+    + "Si es la primera vez que entras, tu cuenta quedará pendiente hasta que el administrador la apruebe.\n";
+  return `mailto:${correos.map(normalizar).join(",")}?subject=${encodeURIComponent(asunto)}`
+    + `&body=${encodeURIComponent(cuerpo)}`;
+}
