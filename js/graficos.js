@@ -66,7 +66,7 @@ export function dibujarLinea(lienzo, etiquetas, valores, formato) {
 }
 
 /** Puntos de un minigráfico SVG (ancho × alto) para una lista de valores. */
-export function puntosMinigrafico(valores, ancho = 120, alto = 36) {
+function puntosMinigrafico(valores, ancho = 120, alto = 36) {
   const v = valores.filter((x) => x != null);
   if (v.length < 2) return "";
   const min = Math.min(...v), max = Math.max(...v), rango = max - min || 1;

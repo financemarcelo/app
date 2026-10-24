@@ -127,12 +127,6 @@ function deDocumento(d) {
            lectores: datos.lectores ?? [] };
 }
 
-/** Cartera por su ruta (usuarios/{uid}/carteras/{id}). */
-export async function carteraPorRuta(ruta) {
-  const d = await getDoc(doc(db, ruta));
-  return d.exists() ? deDocumento(d) : null;
-}
-
 export function renombrarCartera(c, nombre) {
   return updateDoc(doc(db, c.ruta), { nombre });
 }

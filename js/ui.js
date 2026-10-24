@@ -84,8 +84,8 @@ export function reparto(titulo, partes) {
       <strong class="num">${f.num(p.fraccion * 100, 1)} %</strong></div>`).join("")}</div>`;
 }
 
-export const COLORES_REPARTO = ["var(--fuerte)", "var(--sube)", "var(--gris-1)", "var(--gris-2)", "#6b7fae", "#a3a3a3", "#7c5c4a"];
-export const COLOR_EFECTIVO = "var(--gris-3)";
+const COLORES_REPARTO = ["var(--fuerte)", "var(--sube)", "var(--gris-1)", "var(--gris-2)", "#6b7fae", "#a3a3a3", "#7c5c4a"];
+const COLOR_EFECTIVO = "var(--gris-3)";
 
 export function colorear(partes) {
   let i = 0;

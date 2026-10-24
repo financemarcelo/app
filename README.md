@@ -91,6 +91,16 @@ a nombre de quien las hace. Las preferencias se guardan en
 Las carteras calculadas se guardan en memoria durante un minuto o hasta la siguiente
 escritura; la cartera abierta se calcula siempre de nuevo.
 
+## Versiones en el navegador
+
+`index.html` pide la hoja de estilos, el módulo principal y, mediante un mapa de importación,
+cada módulo con una huella de su contenido (`?v=…`). Así el navegador nunca mezcla ficheros
+de una versión anterior guardados en su caché con los de la nueva. `npm run versiones`
+actualiza las huellas y `npm test` comprueba que están al día.
+
+Si la aplicación no arranca (un módulo que no se descarga o un error al cargarlo), la página
+lo explica con un botón para volver a cargar en lugar de quedarse en «Cargando…».
+
 ## Estructura
 
 | Ruta | Contenido |
@@ -107,11 +117,13 @@ escritura; la cartera abierta se calcula siempre de nuevo.
 | `js/miembros.js` | Correos de los miembros y avisos por correo (sin dependencias) |
 | `js/firebase.js`, `js/config.js` | Inicialización y configuración pública de Firebase |
 | `js/formato.js`, `js/graficos.js` | Formato en español y gráficos (Chart.js) |
+| `scripts/version.mjs` | Huellas de los ficheros en `index.html` (`npm run versiones`) |
 | `tests/` | Pruebas (`npm test`, Node.js 20 o posterior) |
 
 ## Ejecución local
 
 ```bash
 python3 -m http.server 8000   # y abrir http://localhost:8000
+npm run versiones             # tras cambiar cualquier fichero de css/ o js/
 npm test                      # pruebas
 ```

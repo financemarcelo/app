@@ -165,3 +165,6 @@ $("#boton-apuntar").addEventListener("click", async () => {
   }
   return abrirApuntar();
 });
+
+// Para el aviso de index.html: los módulos se han cargado y la aplicación ha arrancado.
+window.carterasIniciada = true;
