@@ -48,9 +48,8 @@ export async function calcularCartera(c, { conSerie = false } = {}) {
   const serie = conSerie ? cartera.serieValor({ ...base, sesiones, desde: c.fecha_inicio, hasta: hoy() }) : null;
   // Capital aportado en dólares: al tipo del BCE del día de inicio.
   const capitalEur = c.capital_inicial, capitalUsd = c.capital_inicial * tipoCambio(c.fecha_inicio);
-  // `linea`: lo necesario para recalcular la cartera con una operación más (operar en una fecha pasada).
   return { cartera: c, operaciones, estado, valoracion, serie, cotizaciones, cambio, divisas, fichas, eventos,
-           sesiones, hoyEur, hoyUsd: hoyEur * cambio.valor, capitalEur, capitalUsd, linea: { ...base, cierreAnterior } };
+           sesiones, hoyEur, hoyUsd: hoyEur * cambio.valor, capitalEur, capitalUsd };
 }
 
 /**
