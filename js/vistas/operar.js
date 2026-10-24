@@ -36,22 +36,22 @@ export async function vista({ actual, partes, consulta }) {
       <span class="fila" id="estado-plaza" style="font-weight:600;font-size:14px"></span></div>
     <div class="columnas">
       <form class="principal" id="operar" style="gap:2px;background:var(--fuerte);border:2px solid var(--fuerte)">
-        <fieldset class="panel" style="border:0;margin:0">
-          <legend class="etiqueta" style="float:left;padding:0">1 · Cartera</legend>
-          <div style="clear:both;display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px" id="carteras"></div>
-        </fieldset>
-        <fieldset class="panel" style="border:0;margin:0">
-          <legend class="etiqueta" style="float:left;padding:0">2 · Valor</legend>
-          <select id="valor" style="clear:both" required>
+        <section class="panel" role="group" aria-labelledby="paso-cartera">
+          <h2 class="etiqueta" id="paso-cartera">1 · Cartera</h2>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px" id="carteras"></div>
+        </section>
+        <section class="panel" role="group" aria-labelledby="paso-valor">
+          <h2 class="etiqueta" id="paso-valor">2 · Valor</h2>
+          <select id="valor" required>
             <option value="">Elige un valor…</option>
             <optgroup label="IBEX 35">${opciones("IBEX35")}</optgroup>
             <optgroup label="Dow Jones">${opciones("DJIA")}</optgroup>
           </select>
           <div id="ficha-valor"></div>
-        </fieldset>
-        <fieldset class="panel" style="border:0;margin:0;gap:14px">
-          <legend class="etiqueta" style="float:left;padding:0">3 · Orden</legend>
-          <div style="clear:both">${segmentado("tipo", [{ valor: "compra", texto: "Comprar" }, { valor: "venta", texto: "Vender" }], "compra", { clase: "grande lleno" })}</div>
+        </section>
+        <section class="panel" role="group" aria-labelledby="paso-orden" style="gap:14px">
+          <h2 class="etiqueta" id="paso-orden">3 · Orden</h2>
+          <div>${segmentado("tipo", [{ valor: "compra", texto: "Comprar" }, { valor: "venta", texto: "Vender" }], "compra", { clase: "grande lleno" })}</div>
           <div class="fila" style="align-items:flex-end;gap:16px">
             <label class="campo" style="flex:1 1 200px"><span>Títulos</span>
               <span class="contador"><button type="button" data-paso="-1" aria-label="Uno menos">−</button>
@@ -67,7 +67,7 @@ export async function vista({ actual, partes, consulta }) {
             <label class="opcion desactivada"><input type="radio" name="precio" disabled><span><strong>Cierre de un día anterior</strong>
               <span class="suave">· para reconstruir una cartera desde 2006</span> <span class="construccion">En construcción</span></span></label>
           </div>
-        </fieldset>
+        </section>
       </form>
       <aside class="lateral">
         <section class="panel fuerte" id="resumen"></section>
