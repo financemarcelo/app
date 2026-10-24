@@ -8,9 +8,62 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Caveat:wght@500;700&display=swap">
-  <link rel="stylesheet" href="css/estilos.css">
+  <link rel="stylesheet" href="css/estilos.css?v=a0e6223046">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
-  <script type="module" src="js/app.js"></script>
+  <script>
+    // Si la aplicación no arranca (un módulo que no se descarga o ficheros de versiones distintas),
+    // se explica en pantalla en lugar de dejar «Cargando…» para siempre.
+    (function () {
+      var errores = [];
+      function avisar() {
+        var main = document.getElementById("contenido");
+        if (window.carterasIniciada || !main) return;
+        main.innerHTML = '<section class="panel peligro" style="max-width:640px">'
+          + "<h2>La aplicación no ha terminado de cargar</h2>"
+          + '<p style="margin:0">Vuelve a cargar la página. Si el problema sigue, avisa al administrador con el texto de abajo.</p>'
+          + '<div><button class="boton" type="button" onclick="location.reload()">Volver a cargar</button></div>'
+          + '<p class="aviso" id="error-arranque" style="margin:0;overflow-wrap:anywhere"></p></section>';
+        document.getElementById("error-arranque").textContent = errores.join(" · ");
+      }
+      window.addEventListener("error", function (e) {
+        if (window.carterasIniciada) return;
+        var modulo = e.target && e.target.tagName === "SCRIPT" && e.target.type === "module";
+        if (e.target !== window && !modulo) return;
+        errores.push(modulo ? "No se ha podido descargar " + e.target.getAttribute("src") : e.message);
+        avisar();
+      }, true);
+      setTimeout(function () { errores.push("Sin arrancar tras 15 segundos"); avisar(); }, 15000);
+    })();
+  </script>
+  <script type="importmap">
+  { "imports": {
+    "./js/calculos.js": "./js/calculos.js?v=27931c3f1a",
+    "./js/cartera.js": "./js/cartera.js?v=93d4a28581",
+    "./js/config.js": "./js/config.js?v=970c1d735d",
+    "./js/datos.js": "./js/datos.js?v=23639f54ea",
+    "./js/firebase.js": "./js/firebase.js?v=f0d466ce5b",
+    "./js/formato.js": "./js/formato.js?v=dd4dc45e71",
+    "./js/graficos.js": "./js/graficos.js?v=cceb00ee72",
+    "./js/miembros.js": "./js/miembros.js?v=53bf41d80c",
+    "./js/resumen.js": "./js/resumen.js?v=ed11e423eb",
+    "./js/sesion.js": "./js/sesion.js?v=b05f2aa9e5",
+    "./js/ui.js": "./js/ui.js?v=f84fb140d5",
+    "./js/vistas/admin.js": "./js/vistas/admin.js?v=38bb0aec50",
+    "./js/vistas/apuntar.js": "./js/vistas/apuntar.js?v=1c9c92884e",
+    "./js/vistas/carteras.js": "./js/vistas/carteras.js?v=0833532378",
+    "./js/vistas/comun.js": "./js/vistas/comun.js?v=c532d3a6ac",
+    "./js/vistas/cuaderno.js": "./js/vistas/cuaderno.js?v=8bb898bb6b",
+    "./js/vistas/dividendos.js": "./js/vistas/dividendos.js?v=1101e02610",
+    "./js/vistas/inicio.js": "./js/vistas/inicio.js?v=fcf47f5e13",
+    "./js/vistas/mercado.js": "./js/vistas/mercado.js?v=e54e3f9673",
+    "./js/vistas/operar.js": "./js/vistas/operar.js?v=8a646d2790",
+    "./js/vistas/pendiente.js": "./js/vistas/pendiente.js?v=0ab73125c7",
+    "./js/vistas/perfil.js": "./js/vistas/perfil.js?v=1ed607c8a9",
+    "./js/vistas/portada.js": "./js/vistas/portada.js?v=dc0f323b24",
+    "./js/vistas/valor.js": "./js/vistas/valor.js?v=9032a7d67b"
+  } }
+  </script>
+  <script type="module" src="js/app.js?v=8025d75e37"></script>
 </head>
 <body>
   <header class="cabecera" id="cabecera" hidden>

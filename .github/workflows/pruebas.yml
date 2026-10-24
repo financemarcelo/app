@@ -17,4 +17,4 @@ jobs:
           node-version: "22"
       - run: npm test
       - name: Sintaxis de los módulos
-        run: for f in js/*.js; do node --check "$f"; done
+        run: for f in js/*.js js/vistas/*.js scripts/*.mjs; do node --check "$f"; done
