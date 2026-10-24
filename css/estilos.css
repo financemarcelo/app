@@ -216,7 +216,6 @@ textarea { resize: vertical; min-height: 96px; line-height: 1.5; }
 .error { color: var(--acento); margin: 0; font-weight: 600; }
 .aviso { color: var(--suave); font-size: 13px; margin: 0; }
 .orientativo { display: inline-block; border: 1.5px dashed var(--gris-2); color: var(--suave); padding: 1px 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
-.construccion { display: inline-block; background: var(--linea-suave); color: var(--suave); padding: 1px 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
 .etiqueta-tipo { display: inline-block; padding: 2px 8px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; border: 1.5px solid var(--fuerte); }
 .etiqueta-tipo.lleno { background: var(--fuerte); color: var(--sobre-fuerte); }
 .etiqueta-tipo.rojo { background: var(--acento); color: var(--sobre-acento); border-color: var(--acento); }

@@ -127,22 +127,42 @@ export function dividendosEstimados({ titulos, eventos, divisas, eurusd, desde, 
       const fecha = sumarAnio(d.fecha, 1);
       if (fecha < desde || fecha > hasta) continue;
       r.push({ fecha, simbolo, titulos: n, porTitulo: d.importe, divisa: divisas[simbolo],
-               importeEur: aEuros(n * d.importe, divisas[simbolo], eurusd), estimado: true });
+               importeEur: aEuros(n * d.importe, divisas[simbolo], eurusd),
+               importeUsd: aEuros(n * d.importe, divisas[simbolo], eurusd) * eurusd, estimado: true });
     }
   }
   return r.sort((a, b) => a.fecha.localeCompare(b.fecha));
 }
 
 /** Suma de importes por mes (12 posiciones) de los movimientos de un año. */
-export function porMes(movimientos, anio) {
+export function porMes(movimientos, anio, importe = (m) => m.importeEur) {
   const meses = Array(12).fill(0);
   for (const m of movimientos) {
-    if (m.fecha.startsWith(`${anio}-`)) meses[Number(m.fecha.slice(5, 7)) - 1] += m.importeEur;
+    if (m.fecha.startsWith(`${anio}-`)) meses[Number(m.fecha.slice(5, 7)) - 1] += importe(m);
   }
   return meses;
 }
 
 /** Serie en base 100 a partir de su primer valor. */
+/**
+ * Sesiones en la escala de hoy, para los gráficos. Los cierres guardados son los negociados:
+ * los anteriores a cada desdoblamiento (o ajuste) se dividen por su proporción. El cierre con
+ * dividendos se escala para que termine en el último cierre.
+ */
+export function enEscalaDeHoy({ fechas, cierres, cierresAjustados }, desdoblamientos = []) {
+  const eventos = [...desdoblamientos].sort((a, b) => (a.fecha < b.fecha ? -1 : 1));
+  const factores = new Array(fechas.length);
+  let factor = 1, j = eventos.length - 1;
+  for (let i = fechas.length - 1; i >= 0; i--) {
+    while (j >= 0 && eventos[j].fecha > fechas[i]) { factor *= eventos[j].numerador / eventos[j].denominador; j--; }
+    factores[i] = factor;
+  }
+  const escalados = cierres.map((c, i) => c / factores[i]);
+  const n = fechas.length - 1;
+  const escala = n >= 0 && cierresAjustados[n] ? escalados[n] / cierresAjustados[n] : 1;
+  return { fechas, cierres: escalados, cierresAjustados: cierresAjustados.map((a) => (a == null ? null : a * escala)) };
+}
+
 export function base100(valores) {
   const inicio = valores.find((v) => v != null && v !== 0);
   return valores.map((v) => (v == null || !inicio ? null : (v / inicio) * 100));

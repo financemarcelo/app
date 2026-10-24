@@ -3,12 +3,15 @@ import { salir } from "../firebase.js";
 import * as datos from "../datos.js";
 import { sesion, administrador, cambiarPreferencias } from "../sesion.js";
 import { todasLasCarteras, movimientosDe, invalidar } from "../resumen.js";
-import { $, $$, pintar, kpis, segmentado, alElegir, intentar, descargar, inicial, enConstruccion } from "../ui.js";
+import { $, $$, pintar, kpis, segmentado, alElegir, intentar, descargar, inicial } from "../ui.js";
 import * as f from "../formato.js";
 import { comisionEur } from "../cartera.js";
 import { aCsv } from "../calculos.js";
 
 const PREFERENCIAS = [
+  { clave: "moneda", titulo: "Moneda de valoración",
+    ayuda: "Valor, rentabilidad y dividendos en euros o en dólares. Cada importe pasado se convierte al tipo del BCE de su fecha y el valor actual, al de hoy. Las operaciones se pagan siempre en euros.",
+    opciones: [["EUR", "Euro"], ["USD", "Dólar"]] },
   { clave: "tema", titulo: "Tema", ayuda: "Automático sigue el ajuste de tu dispositivo.",
     opciones: [["claro", "Claro"], ["oscuro", "Oscuro"], ["automatico", "Automático"]] },
   { clave: "variaciones", titulo: "Variaciones", ayuda: "Cómo se muestran los cambios de precio del día en listas y tarjetas.",
@@ -54,11 +57,6 @@ export async function vista({ actual }) {
 
         <section class="panel" id="preferencias" style="gap:4px">
           <h2 style="margin-bottom:8px">Preferencias</h2>
-          <div class="fila entre" style="padding:12px 0;border-top:1px solid var(--linea-suave);gap:10px 24px">
-            <div class="pila" style="gap:2px;flex:1 1 240px"><strong>Moneda de valoración</strong>
-              <span class="aviso">Los valores en la otra moneda se convierten con el tipo del BCE. ${enConstruccion()} para el dólar.</span></div>
-            ${segmentado("moneda", [{ valor: "EUR", texto: "Euro" }, { valor: "USD", texto: "Dólar", desactivada: true }], "EUR")}
-          </div>
           ${PREFERENCIAS.map((p) => `<div class="fila entre" style="padding:12px 0;border-top:1px solid var(--linea-suave);gap:10px 24px">
             <div class="pila" style="gap:2px;flex:1 1 240px"><strong>${p.titulo}</strong><span class="aviso">${p.ayuda}</span></div>
             ${segmentado(p.clave, p.opciones.map(([v, t]) => ({ valor: v, texto: t })), prefs[p.clave])}</div>`).join("")}

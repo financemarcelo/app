@@ -22,10 +22,10 @@ export async function calcularCartera(c, { conSerie = false } = {}) {
   const fichas = Object.fromEntries(await Promise.all(simbolos.map(async (s) => [s, await datos.fichaValor(s)])));
   const eventos = Object.fromEntries(simbolos.map((s) => [s, fichas[s] ?? {}]));
   const divisas = Object.fromEntries(simbolos.map((s) => [s, fichas[s]?.divisa ?? "EUR"]));
-  const anioInicio = Number((operaciones[0]?.fecha_mercado ?? c.fecha_inicio).slice(0, 4));
+  const anioInicio = Number([c.fecha_inicio, ...operaciones.map((o) => o.fecha_mercado)].sort()[0].slice(0, 4));
   const anioActual = new Date().getUTCFullYear();
   const [serieCambio, sesiones] = await Promise.all([
-    datos.serieTipoCambio(Math.min(anioInicio, Number(c.fecha_inicio.slice(0, 4))), anioActual),
+    datos.serieTipoCambio(anioInicio, anioActual),
     Promise.all(simbolos.map(async (s) => [s, await datos.sesiones(s, anioInicio, anioActual)]))
       .then(Object.fromEntries),
   ]);
@@ -46,8 +46,11 @@ export async function calcularCartera(c, { conSerie = false } = {}) {
     return v == null || p.valorEur == null ? suma : suma + p.valorEur - p.valorEur / (1 + v);
   }, 0);
   const serie = conSerie ? cartera.serieValor({ ...base, sesiones, desde: c.fecha_inicio, hasta: hoy() }) : null;
+  // Capital aportado en dólares: al tipo del BCE del día de inicio.
+  const capitalEur = c.capital_inicial, capitalUsd = c.capital_inicial * tipoCambio(c.fecha_inicio);
+  // `linea`: lo necesario para recalcular la cartera con una operación más (operar en una fecha pasada).
   return { cartera: c, operaciones, estado, valoracion, serie, cotizaciones, cambio, divisas, fichas, eventos,
-           sesiones, hoyEur };
+           sesiones, hoyEur, hoyUsd: hoyEur * cambio.valor, capitalEur, capitalUsd, linea: { ...base, cierreAnterior } };
 }
 
 /**
@@ -69,14 +72,17 @@ export async function todasLasCarteras() {
   }
 }
 
+/** Efectivo que mueve una operación, con la comisión: negativo en las compras. */
+const importeOperacion = (o) => (o.tipo === "compra" ? -(o.importe_eur + (o.comision_eur ?? 0))
+  : o.importe_eur - (o.comision_eur ?? 0));
+
 /** Movimientos de todas las carteras: operaciones y eventos, con la cartera a la que pertenecen. */
 export function movimientosDe(calculadas) {
   return calculadas.flatMap((r) => [
     ...r.operaciones.map((o) => ({ fecha: o.fecha_mercado, tipo: o.tipo, simbolo: o.simbolo, cartera: r.cartera,
                                    titulos: o.titulos, precio: o.precio, divisa: o.divisa, autor: o.autor,
-                                   comisionEur: o.comision_eur ?? 0, marca: o.marca,
-                                   importeEur: o.tipo === "compra" ? -(o.importe_eur + (o.comision_eur ?? 0))
-                                     : o.importe_eur - (o.comision_eur ?? 0) })),
+                                   comisionEur: o.comision_eur ?? 0, comisionUsd: (o.comision_eur ?? 0) * o.eurusd,
+                                   marca: o.marca, importeEur: importeOperacion(o), importeUsd: importeOperacion(o) * o.eurusd })),
     ...r.estado.movimientos.map((m) => ({ ...m, cartera: r.cartera })),
   ]).sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : (b.marca ?? 0) - (a.marca ?? 0)));
 }

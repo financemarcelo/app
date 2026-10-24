@@ -8,6 +8,7 @@ import * as f from "../formato.js";
 import { dibujarLinea } from "../graficos.js";
 import { plazaDe, estadoSesion, variacion, sector } from "../calculos.js";
 import { enlaceCartera, enlaceOperar } from "./comun.js";
+import { en } from "../moneda.js";
 import { abrirApuntar } from "./apuntar.js";
 
 const RANGOS = [["1M", 1 / 12], ["6M", 0.5], ["1A", 1], ["5A", 5], ["10A", 10], ["Desde 2006", 25]];
@@ -89,7 +90,7 @@ export async function vista({ actual, partes }) {
         <section class="panel negro">
           <h3 class="titulo-seccion">En tus carteras</h3>
           ${posiciones.length ? posiciones.map(({ r, p }) => `<a class="renglon num" href="${enlaceCartera(r.cartera)}" style="text-decoration:none">
-            <span>${f.html(r.cartera.nombre)} · ${f.titulos(p.titulos)} títulos</span><strong>${f.pctSigno(p.plusvaliaPct)}</strong></a>`).join("")
+            <span>${f.html(r.cartera.nombre)} · ${f.titulos(p.titulos)} títulos</span><strong>${f.pctSigno(en(p, "plusvaliaPct"))}</strong></a>`).join("")
             : `<span class="suave">No lo tienes en ninguna cartera.</span>`}
         </section>
         <section class="panel">
@@ -112,12 +113,12 @@ export async function vista({ actual, partes }) {
   const dibujar = async () => {
     const anios = RANGOS.find(([n]) => n === rango)[1];
     const desde = new Date(Date.now() - anios * 365.25 * 86400000).toISOString().slice(0, 10);
-    const s = await datos.sesiones(simbolo, Math.max(2006, Number(desde.slice(0, 4))), new Date().getUTCFullYear());
+    const s = await datos.sesionesEnEscalaDeHoy(simbolo, Math.max(2006, Number(desde.slice(0, 4))), new Date().getUTCFullYear());
     if (!vigente(actual)) return;
     const k = Math.max(0, s.fechas.findIndex((x) => x >= desde));
     const valores = (serie === "precio" ? s.cierres : s.cierresAjustados).slice(k);
-    $("#nota-serie").textContent = serie === "precio" ? "Precio de cierre de cada sesión."
-      : "Cierre ajustado por dividendos y desdoblamientos (Yahoo Finance): muestra la rentabilidad total de quien reinvierte los dividendos.";
+    $("#nota-serie").textContent = serie === "precio" ? "Precio de cierre de cada sesión, corregido por los desdoblamientos posteriores."
+      : "Precio con los dividendos reinvertidos, en la escala de hoy: muestra la rentabilidad total de quien reinvierte los dividendos.";
     dibujarLinea($("#grafico"), s.fechas.slice(k).map(f.fecha), valores, (x) => f.precio(x, ficha.divisa));
   };
   alElegir(document, "rango", (x) => { rango = x; dibujar(); });

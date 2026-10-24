@@ -108,7 +108,7 @@ export async function abrirApuntar({ simbolo = null, cartera = null, grafico = f
 
   if (grafico && simbolo) {
     const anio = new Date().getUTCFullYear();
-    datos.sesiones(simbolo, anio - 1, anio).then((s) => {
+    datos.sesionesEnEscalaDeHoy(simbolo, anio - 1, anio).then((s) => {
       if ($("#mini-apuntar", cuerpo)) $("#mini-apuntar", cuerpo).innerHTML = minigrafico(s.cierres.slice(-250), 80, 32);
     });
   }

@@ -5,6 +5,7 @@ import { $, pintar, kpis, tabla, descargar, orientativo } from "../ui.js";
 import * as f from "../formato.js";
 import { dividendosEstimados, porMes, aCsv } from "../calculos.js";
 import { enlaceValor } from "./comun.js";
+import { moneda, en, dinero, dineroEntero, dineroSigno, dineroAproximado } from "../moneda.js";
 
 const filtro = { cartera: "", anio: null };
 
@@ -17,7 +18,8 @@ export async function vista({ actual }) {
   const anio = filtro.anio && anios.includes(filtro.anio) ? filtro.anio : anioActual;
   const delAnio = cobrados.filter((m) => m.fecha.startsWith(`${anio}-`));
   const delAnterior = cobrados.filter((m) => m.fecha.startsWith(`${anio - 1}-`));
-  const suma = (lista) => lista.reduce((s, m) => s + m.importeEur, 0);
+  const importe = (m) => en(m, "importe");
+  const suma = (lista) => lista.reduce((s, m) => s + importe(m), 0);
 
   // Estimaciones con los títulos de hoy y los dividendos del año anterior.
   const titulos = {}, eventos = {}, divisas = {};
@@ -33,18 +35,18 @@ export async function vista({ actual }) {
                                          hasta: new Date(Date.now() + 120 * 86400000).toISOString().slice(0, 10) }).slice(0, 5);
   const haceUnAno = new Date(Date.now() - 365 * 86400000).toISOString().slice(0, 10);
   const ultimos12 = suma(cobrados.filter((m) => m.fecha > haceUnAno));
-  const valorActual = elegidas.reduce((s, r) => s + r.valoracion.totalEur, 0);
+  const valorActual = elegidas.reduce((s, r) => s + en(r.valoracion, "total"), 0);
 
-  const meses = porMes(delAnio, anio);
-  const mesesEstimados = porMes(estimadosAnio, anio);
+  const meses = porMes(delAnio, anio, importe);
+  const mesesEstimados = porMes(estimadosAnio, anio, importe);
   const maximo = Math.max(1, ...meses.map((m, i) => m + mesesEstimados[i]));
-  const porValor = Object.entries(delAnio.reduce((acc, m) => ({ ...acc, [m.simbolo]: (acc[m.simbolo] ?? 0) + m.importeEur }), {}))
+  const porValor = Object.entries(delAnio.reduce((acc, m) => ({ ...acc, [m.simbolo]: (acc[m.simbolo] ?? 0) + importe(m) }), {}))
     .sort((a, b) => b[1] - a[1]);
   const diferencia = suma(delAnio) - suma(delAnterior);
 
   if (!pintar(actual, `
     <div class="encabezado">
-      <div><h1>Dividendos</h1><p class="subtitulo">Importes brutos, sin retenciones · los dólares se convierten al tipo del BCE del día de pago</p></div>
+      <div><h1>Dividendos</h1><p class="subtitulo">Importes brutos, sin retenciones · los ${moneda() === "USD" ? "euros" : "dólares"} se convierten al tipo del BCE del día de pago</p></div>
       <div class="fila">
         <select id="cartera" style="width:auto"><option value="">Todas las carteras</option>
           ${calculadas.map((r) => `<option value="${f.html(r.cartera.ruta)}" ${r.cartera.ruta === filtro.cartera ? "selected" : ""}>${f.html(r.cartera.nombre)}</option>`).join("")}</select>
@@ -52,12 +54,12 @@ export async function vista({ actual }) {
       </div>
     </div>
     ${kpis([
-      { etiqueta: `Cobrado en ${anio}`, valor: f.eurEntero(suma(delAnio)), nota: `${f.cantidad(delAnio.length, "cobro")} de ${f.cantidad(new Set(delAnio.map((m) => m.simbolo)).size, "valor", "valores")}` },
+      { etiqueta: `Cobrado en ${anio}`, valor: dineroEntero(suma(delAnio)), nota: `${f.cantidad(delAnio.length, "cobro")} de ${f.cantidad(new Set(delAnio.map((m) => m.simbolo)).size, "valor", "valores")}` },
       anio === anioActual
-        ? { etiqueta: "Estimado hasta diciembre", valor: `≈ ${f.eurEntero(suma(estimadosAnio))}`, nota: f.cantidad(estimadosAnio.length, "cobro previsto", "cobros previstos") }
-        : { etiqueta: `Media por cobro`, valor: f.eurEntero(delAnio.length ? suma(delAnio) / delAnio.length : 0), nota: `en ${anio}` },
+        ? { etiqueta: "Estimado hasta diciembre", valor: `≈ ${dineroEntero(suma(estimadosAnio))}`, nota: f.cantidad(estimadosAnio.length, "cobro previsto", "cobros previstos") }
+        : { etiqueta: `Media por cobro`, valor: dineroEntero(delAnio.length ? suma(delAnio) / delAnio.length : 0), nota: `en ${anio}` },
       { etiqueta: "Rentabilidad por dividendo", valor: `${f.num(valorActual ? (ultimos12 / valorActual) * 100 : 0, 1)} %`, nota: "últimos 12 meses sobre el valor actual" },
-      { etiqueta: `Frente a ${anio - 1}`, valor: f.eurSigno(diferencia), clase: f.claseSigno(diferencia),
+      { etiqueta: `Frente a ${anio - 1}`, valor: dineroSigno(diferencia), clase: f.claseSigno(diferencia),
         nota: suma(delAnterior) ? `${f.pctSigno(diferencia / suma(delAnterior), 1)} respecto al año anterior` : `sin cobros en ${anio - 1}` },
     ])}
 
@@ -68,7 +70,7 @@ export async function vista({ actual }) {
             ${estimadosAnio.length ? `<span><span class="cuadro" style="border:1.5px dashed var(--fuerte)"></span>Estimado</span>` : ""}</div></div>
         <div class="barras-verticales">${meses.map((m, i) => {
           const e = mesesEstimados[i];
-          return `<div class="columna" title="${f.nombreMes(i)}: ${f.eurEntero(m)}${e ? ` + ≈ ${f.eurEntero(e)}` : ""}">
+          return `<div class="columna" title="${f.nombreMes(i)}: ${dineroEntero(m)}${e ? ` + ≈ ${dineroEntero(e)}` : ""}">
             <span>${m + e ? `${e ? "≈" : ""}${f.num(m + e, 0)}` : ""}</span>
             ${e ? `<i class="estimada" style="height:${((e / maximo) * 170).toFixed(0)}px"></i>` : ""}
             ${m ? `<i style="height:${((m / maximo) * 170).toFixed(0)}px"></i>` : ""}</div>`;
@@ -78,7 +80,7 @@ export async function vista({ actual }) {
       <aside class="panel lateral" style="gap:10px">
         <h2>Por valor</h2>
         ${porValor.length ? porValor.slice(0, 8).map(([s, v]) => `<a class="pila" href="${enlaceValor(s)}" style="gap:4px;text-decoration:none">
-          <span class="renglon num"><strong>${f.html(s)}</strong><span>${f.eurEntero(v)}</span></span>
+          <span class="renglon num"><strong>${f.html(s)}</strong><span>${dineroEntero(v)}</span></span>
           <span style="display:block;height:6px;background:var(--linea-suave)"><span style="display:block;height:6px;width:${((v / porValor[0][1]) * 100).toFixed(1)}%;background:var(--fuerte)"></span></span></a>`).join("")
           : `<p class="vacio">Sin cobros en ${anio}.</p>`}
       </aside>
@@ -91,7 +93,7 @@ export async function vista({ actual }) {
           <span class="pila" style="align-items:center;border:1.5px solid currentColor;padding:4px 0;gap:0"><strong style="font-size:20px;line-height:1">${d.fecha.slice(8, 10)}</strong>
             <span style="font-size:11px;text-transform:uppercase">${f.nombreMes(Number(d.fecha.slice(5, 7)) - 1)}</span></span>
           <span class="pila" style="gap:0;min-width:0"><strong>${f.html(d.simbolo)}</strong><span class="suave" style="font-size:12px">${f.titulos(d.titulos)} títulos × ${f.num(d.porTitulo, 4)} ${d.divisa === "USD" ? "$" : "€"}</span></span>
-          <strong class="num">≈ ${d.importeEur < 100 ? f.eur(d.importeEur) : f.eurEntero(d.importeEur)}</strong></div>`).join("")
+          <strong class="num">≈ ${dineroAproximado(importe(d))}</strong></div>`).join("")
           : `<p class="suave" style="margin:0">No se esperan dividendos en los próximos cuatro meses.</p>`}
         <span class="aviso" style="color:var(--gris-3)">Estimados con los dividendos del año anterior en las mismas fechas y los títulos de hoy. La fecha y el importe reales pueden variar.</span>
       </section>
@@ -100,7 +102,7 @@ export async function vista({ actual }) {
         ${delAnio.length ? tabla(["Fecha", "Valor", { texto: "Cartera", izq: true }, "Títulos", "Por título", "Importe"],
           delAnio.map((m) => `<tr class="clicable" data-simbolo="${f.html(m.simbolo)}"><td>${f.fecha(m.fecha)}</td><td><strong>${f.html(m.simbolo)}</strong></td>
             <td class="izq">${f.html(m.cartera.nombre)}</td><td>${f.titulos(m.titulos)}</td><td>${f.num(m.porTitulo, 4)} ${m.divisa === "USD" ? "$" : "€"}</td>
-            <td><strong>${f.eur(m.importeEur)}</strong></td></tr>`))
+            <td><strong>${dinero(importe(m))}</strong></td></tr>`))
           : `<p class="vacio">Sin cobros en ${anio}.</p>`}
       </section>
     </div>`)) return;

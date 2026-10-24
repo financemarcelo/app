@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { sector, PLAZAS, estadoSesion, instanteEnZona, enZona, horaPeninsular, variacion, reparto,
-         dividendosEstimados, porMes, base100, alinear, aCsv } from "../js/calculos.js";
+         dividendosEstimados, porMes, base100, alinear, aCsv, enEscalaDeHoy } from "../js/calculos.js";
 
 test("sectores en español", () => {
   assert.equal(sector("Information Technology"), "Tecnología");
@@ -70,4 +70,12 @@ test("importes por mes, base 100 y alineación", () => {
 test("CSV para Excel en español", () => {
   const texto = aCsv(["Valor", "Importe"], [["SAN.MC", 1234.5], ['Nota "rara"; con punto y coma', null]]);
   assert.equal(texto, '﻿Valor;Importe\r\nSAN.MC;1234,5\r\n"Nota ""rara""; con punto y coma";\r\n');
+});
+
+test("sesiones en la escala de hoy: desdoblamientos y cierre con dividendos", () => {
+  const s = enEscalaDeHoy({ fechas: ["2020-08-28", "2020-08-31", "2024-06-10"], cierres: [500, 130, 120],
+                            cierresAjustados: [480, 128, 96] },
+                          [{ fecha: "2024-06-10", numerador: 10, denominador: 1 }, { fecha: "2020-08-31", numerador: 4, denominador: 1 }]);
+  assert.deepEqual(s.cierres, [12.5, 13, 120]);
+  assert.deepEqual(s.cierresAjustados, [600, 160, 120]); // termina en el último cierre
 });

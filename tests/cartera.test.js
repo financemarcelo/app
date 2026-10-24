@@ -100,7 +100,7 @@ test("valoración a precios actuales", () => {
   cerca(v.totalEur, 7000 + 1200 + 2000);
   const san = v.posiciones.find((p) => p.simbolo === "SAN.MC");
   cerca(san.plusvaliaEur, 200);
-  cerca(san.plusvaliaPct, 0.2);
+  cerca(san.plusvaliaPctEur, 0.2);
 });
 
 test("serie diaria del valor", () => {
@@ -144,4 +144,38 @@ test("la comisión sale del efectivo y entra en el coste", () => {
   cerca(e.comisionesEur, 10);
   assert.equal(validarOperacion({ efectivo: 100, posiciones: {} }, { tipo: "compra", simbolo: "SAN.MC", titulos: 1,
                                                                      importeEur: 98, comisionEur: 5 }), "No hay efectivo suficiente.");
+});
+
+test("operación con fecha pasada: se aplica en su fecha y se comprueban las posteriores", () => {
+  const base = { capitalInicial: 1000, eventos: {}, divisas, tipoCambio, cierreAnterior: sinCierre };
+  // Compra posterior ya registrada (2026-03-01, 800 €) y una compra nueva con fecha anterior.
+  const posterior = op("2026-03-01", "SAN.MC", "compra", 80, 10, 1);
+  const nueva = op("2026-01-05", "SAN.MC", "compra", 30, 10, 2);
+  const e = reconstruir({ ...base, operaciones: [posterior, nueva] });
+  assert.equal(e.posiciones["SAN.MC"].desde, "2026-01-05");
+  assert.equal(e.problema.op, posterior);   // la compra del 1 de marzo ya no tendría efectivo
+  assert.match(e.problema.texto, /efectivo/);
+  assert.equal(reconstruir({ ...base, operaciones: [posterior, op("2026-01-05", "SAN.MC", "compra", 20, 10, 2)] }).problema, null);
+});
+
+test("venta con fecha pasada sin títulos en esa fecha", () => {
+  const e = reconstruir({ capitalInicial: 1000, eventos: {}, divisas, tipoCambio, cierreAnterior: sinCierre,
+                          operaciones: [op("2026-03-01", "SAN.MC", "compra", 10, 10, 1), op("2026-02-01", "SAN.MC", "venta", 5, 10, 2)] });
+  assert.equal(e.problema.fecha, "2026-02-01");
+  assert.match(e.problema.texto, /Solo hay 0 títulos/);
+});
+
+test("equivalentes en dólares al tipo de cada fecha", () => {
+  const cambio = (fecha) => (fecha < "2026-02-01" ? 1.1 : 1.2);
+  const compra = { ...op("2026-01-05", "SAN.MC", "compra", 100, 10), eurusd: 1.1, comision_eur: 5 };
+  const eventos = { "SAN.MC": { dividendos: [{ fecha: "2026-03-02", importe: 0.5 }], desdoblamientos: [] } };
+  const e = reconstruir({ capitalInicial: 2000, eventos, divisas, tipoCambio: cambio, cierreAnterior: sinCierre, operaciones: [compra] });
+  cerca(e.posiciones["SAN.MC"].costeUsd, 1005 * 1.1);
+  cerca(e.comisionesUsd, 5 * 1.1);
+  cerca(e.dividendosUsd, 50 * 1.2);
+  assert.equal(e.movimientos[0].importeUsd, 50 * 1.2);
+  const v = valorar(e, { "SAN.MC": 12 }, divisas, 1.25);
+  cerca(v.posiciones[0].valorUsd, 1200 * 1.25);
+  cerca(v.posiciones[0].plusvaliaUsd, 1200 * 1.25 - 1005 * 1.1);
+  cerca(v.totalUsd, v.totalEur * 1.25);
 });
