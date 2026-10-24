@@ -231,7 +231,6 @@ table.tabla { width: 100%; border-collapse: collapse; font-size: 14px; }
 .tabla td { text-align: right; padding: 11px 14px; border-bottom: 1px solid var(--linea-suave); white-space: nowrap; }
 :root[data-densidad="compacta"] .tabla td { padding: 6px 12px; }
 .tabla th:first-child, .tabla td:first-child, .tabla .izq { text-align: left; }
-.tabla td.ajustar { white-space: normal; min-width: 200px; }
 .tabla tr.clicable { cursor: pointer; }
 .tabla tr.clicable:hover td { background: var(--fondo); }
 .tabla .nombre { display: block; font-size: 12px; color: var(--suave); white-space: normal; }
