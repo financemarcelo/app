@@ -36,7 +36,6 @@ export const botonDe = (envio) => envio.submitter ?? envio.target.querySelector(
 // ── Fragmentos de HTML ───────────────────────────────────────────────────────
 
 export const orientativo = (texto = "Orientativo") => `<span class="orientativo">${f.html(texto)}</span>`;
-export const enConstruccion = () => `<span class="construccion">En construcción</span>`;
 
 /** Cuadrícula de indicadores: [{etiqueta, valor, nota, clase}]. */
 export function kpis(lista, { compactos = false, dos = false } = {}) {

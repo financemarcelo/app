@@ -25,9 +25,14 @@ Se publica con GitHub Pages en <https://financemarcelo.github.io/app/>.
   dividendos, ajustes y comisiones), evolución en base 100 frente al IBEX 35 o al Dow Jones,
   reparto por mercado, sector y divisa, posiciones, movimientos filtrables, miembros,
   cambio de nombre, eliminación y exportación a CSV. Alta de carteras nuevas con un
-  capital inicial en euros.
+  capital inicial en euros y una fecha de inicio desde el 2 de enero de 2006: una cartera
+  que empieza en el pasado se reconstruye con los cierres de cada día y muestra el aviso
+  de sesgo de supervivencia (la lista de valores es la composición actual de los índices).
 - **Operar**: elección de la cartera y del valor, compra o venta por títulos o por importe,
-  resumen con la comisión simulada y efecto en la cartera. Se llega desde una cartera, desde
+  al último precio o al cierre de un día anterior (desde la fecha de inicio de la cartera,
+  con el tipo de cambio del BCE de ese día), resumen con la comisión simulada y efecto en
+  la cartera de hoy. Una operación con fecha pasada se comprueba contra todas las
+  posteriores: no se admite si alguna deja de tener efectivo o títulos suficientes. Se llega desde una cartera, desde
   la ficha de un valor o desde la barra inferior del móvil.
 - **Mercado**: estado de las bolsas de Madrid y Nueva York, tipo euro-dólar, índices con su
   gráfico y amplitud del día, lista de valores con filtro por índice, sector y seguimiento,
@@ -43,15 +48,14 @@ Se publica con GitHub Pages en <https://financemarcelo.github.io/app/>.
   Los miembros de un cuaderno leen, en solo lectura, las carteras vinculadas en sus notas.
   «Apuntar», en la cabecera y en las fichas, abre un panel para escribir una nota sobre lo
   que se está viendo.
-- **Perfil**: cuenta, preferencias (tema claro u oscuro, variaciones en porcentaje o
-  importe, página al entrar, densidad), comisiones simuladas, exportación, fuentes de datos
-  con su última carga y borrado de las carteras propias.
+- **Perfil**: cuenta, preferencias (moneda de valoración en euros o dólares, tema claro u
+  oscuro, variaciones en porcentaje o importe, página al entrar, densidad), comisiones
+  simuladas, exportación, fuentes de datos con su última carga y borrado de las carteras
+  propias.
 - **Administración** (solo administradores): cuentas pendientes de aprobación (aprobar o
   rechazar) y cuentas con acceso (eliminar). Rechazar o eliminar retira el acceso en ese
   momento; un proceso automático del repositorio de datos desactiva después la cuenta y
   borra su perfil, sus carteras, sus operaciones y sus cuadernos.
-
-En construcción: operar al cierre de un día anterior y la valoración en dólares.
 
 ## Carteras compartidas
 
@@ -73,6 +77,13 @@ los eventos de cada valor (`js/cartera.js`):
 - Un ajuste (ampliación con derechos, dividendo en acciones o escisión) no cambia los
   títulos: se abona en efectivo el valor que pierde la acción.
 - La plusvalía usa el precio medio de compra; las ventas reducen el coste en proporción.
+- Los precios guardados son los negociados cada día. Los gráficos de precios los muestran
+  en la escala de hoy (corregidos por los desdoblamientos posteriores).
+
+En dólares, cada importe pasado (capital inicial, operaciones, comisiones, dividendos y
+ajustes) se convierte al tipo del BCE de su fecha, y el valor actual, al de hoy; la
+rentabilidad incluye así el efecto del tipo de cambio. El efectivo de la cartera sigue en
+euros: las operaciones se pagan siempre en euros.
 
 Los dividendos futuros son **estimaciones**: repiten los del año anterior en las mismas
 fechas con los títulos de hoy, y se marcan como tales en pantalla.
@@ -113,6 +124,7 @@ lo explica con un botón para volver a cargar en lugar de quedarse en «Cargando
 | `js/resumen.js` | Cálculo de las carteras de la cuenta con los datos de Firestore |
 | `js/datos.js` | Lectura y escritura en Firestore |
 | `js/sesion.js` | Cuenta, estado de acceso y preferencias de la sesión |
+| `js/moneda.js` | Moneda de presentación (euro o dólar) e importes con su símbolo |
 | `js/ui.js` | Piezas de interfaz compartidas (indicadores, tablas, ventanas) |
 | `js/miembros.js` | Correos de los miembros y avisos por correo (sin dependencias) |
 | `js/firebase.js`, `js/config.js` | Inicialización y configuración pública de Firebase |

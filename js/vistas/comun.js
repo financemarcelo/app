@@ -43,3 +43,10 @@ export function textoVariacion(cot, decimales = 2) {
   return sesion.preferencias.variaciones === "importe" ? f.conSigno(cot.precio - cot.cierre_anterior, decimales)
     : f.pctSigno(v);
 }
+
+/** Aviso del sesgo de supervivencia de las carteras que empiezan en el pasado. */
+export function avisoSupervivencia() {
+  return "La lista de valores es la composición actual del IBEX 35 y del Dow Jones: faltan las empresas que estaban "
+    + "en los índices en esa fecha y salieron después (sesgo de supervivencia), así que las rentabilidades pasadas "
+    + "tienden a salir mejores que las reales.";
+}

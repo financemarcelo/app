@@ -75,6 +75,19 @@ export function eurSigno(n) {
   return `${n > 0 ? "+" : n < 0 ? "−" : ""}${num(Math.abs(n), 0)} €`;
 }
 
+const simbolo = (divisa) => (divisa === "USD" ? "$" : "€");
+
+/** Importe en euros o dólares: 1.234,56 € o 1.234,56 $. */
+export function dinero(n, divisa = "EUR", decimales = 2) {
+  return n == null || Number.isNaN(n) ? "—" : `${num(n, decimales)} ${simbolo(divisa)}`;
+}
+
+/** Importe con signo y sin decimales: +1.234 € o −56 $. */
+export function dineroSigno(n, divisa = "EUR") {
+  if (n == null || Number.isNaN(n)) return "—";
+  return `${n > 0 ? "+" : n < 0 ? "−" : ""}${num(Math.abs(n), 0)} ${simbolo(divisa)}`;
+}
+
 /** Euros sin decimales (231.904 €). */
 export function eurEntero(n) {
   return n == null || Number.isNaN(n) ? "—" : `${num(n, 0)} €`;

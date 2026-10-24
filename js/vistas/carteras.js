@@ -10,9 +10,12 @@ import * as f from "../formato.js";
 import { dibujarSeries } from "../graficos.js";
 import { reparto as calcularReparto, base100, alinear, aCsv } from "../calculos.js";
 import { CAPITAL_INICIAL_POR_DEFECTO, URL_APLICACION } from "../config.js";
-import { enlaceCartera, enlaceOperar, enlaceValor, etiquetaCompartida, autorOperacion, describirMovimiento } from "./comun.js";
+import { enlaceCartera, enlaceOperar, enlaceValor, etiquetaCompartida, autorOperacion, describirMovimiento,
+         avisoSupervivencia } from "./comun.js";
+import { moneda, en, dinero, dineroEntero, dineroSigno } from "../moneda.js";
 import { abrirApuntar } from "./apuntar.js";
 
+const PRIMERA_FECHA = "2006-01-02";
 const RANGOS = [["1M", 1 / 12], ["3M", 0.25], ["6M", 0.5], ["1A", 1], ["Inicio", null]];
 const FILTROS = [["todos", "Todos"], ["compra", "Compras"], ["venta", "Ventas"], ["dividendo", "Dividendos"], ["eventos", "Eventos"]];
 
@@ -37,16 +40,23 @@ export async function vistaNueva({ actual }) {
     <form class="panel fuerte formulario" id="nueva" style="max-width:760px">
       <label class="campo"><span>Nombre</span><input type="text" id="nombre" required maxlength="60" placeholder="Mi cartera"></label>
       <label class="campo"><span>Capital inicial (€)</span><input type="number" id="capital" min="1" step="1" required value="${CAPITAL_INICIAL_POR_DEFECTO}"></label>
-      <label class="campo"><span>Fecha de inicio</span><input type="date" value="${f.hoy()}" disabled></label>
+      <label class="campo"><span>Fecha de inicio</span><input type="date" id="fecha-inicio" required value="${f.hoy()}" min="${PRIMERA_FECHA}" max="${f.hoy()}"></label>
       <div><button class="boton" type="submit">Crear cartera</button></div>
-      <p class="aviso ancho">Empieza hoy. Empezar en una fecha pasada, para reconstruir una cartera con precios históricos, está en construcción.</p>
+      <p class="aviso ancho" id="aviso-inicio">Empieza hoy. Con una fecha pasada, la cartera se reconstruye con los precios de cierre desde esa fecha.</p>
     </form>`)) return;
+  $("#fecha-inicio").addEventListener("input", (e) => {
+    $("#aviso-inicio").textContent = e.target.value && e.target.value < f.hoy()
+      ? `Las operaciones se registran desde Operar, con «Cierre de un día anterior». ${avisoSupervivencia()}`
+      : "Empieza hoy. Con una fecha pasada, la cartera se reconstruye con los precios de cierre desde esa fecha.";
+  });
   $("#nueva").addEventListener("submit", async (e) => {
     e.preventDefault();
     botonDe(e).disabled = true;
     await intentar(async () => {
+      const fecha = $("#fecha-inicio").value;
       const nueva = await datos.crearCartera(sesion.usuario, {
-        nombre: $("#nombre").value.trim(), capitalInicial: Number($("#capital").value), fechaInicio: f.hoy() });
+        nombre: $("#nombre").value.trim(), capitalInicial: Number($("#capital").value),
+        fechaInicio: fecha >= PRIMERA_FECHA && fecha <= f.hoy() ? fecha : f.hoy() });
       invalidar();
       location.hash = enlaceCartera(nueva);
     });
@@ -68,18 +78,25 @@ export async function vistaCartera({ actual, partes }) {
   const anio = new Date().getFullYear();
   const movimientos = movimientosDe([r]);
   const cobrosAnio = movimientos.filter((m) => m.tipo === "dividendo" && m.fecha.startsWith(`${anio}-`));
-  const rentEur = valoracion.totalEur - c.capital_inicial;
-  const total = valoracion.totalEur;
+  const total = en(valoracion, "total");
+  const capital = en(r, "capital");
+  const rent = total - capital;
+  const efectivo = en(valoracion, "efectivo");
+  const enDolares = moneda() === "USD";
   const rep = calcularReparto(valoracion.posiciones, estado.efectivo, fichas);
   const compartida = etiquetaCompartida(c);
+  // Reconstruida: empieza al menos tres días antes de su creación.
+  const creada = c.creada?.toDate?.();
+  const reconstruida = creada && c.fecha_inicio < new Date(creada.getTime() - 3 * 86400000).toISOString().slice(0, 10);
   const otros = c.miembros.filter((m) => m !== yo);
 
   if (!pintar(actual, `
     ${esMiembro ? pestanas(lista, c.ruta) : `<p class="miga"><a href="#/cuaderno">← Cuaderno</a></p>`}
     ${esMiembro ? "" : `<p class="recuadro"><strong>Solo lectura.</strong> Ves esta cartera porque su propietario la ha vinculado a un cuaderno del que eres miembro.</p>`}
+    ${reconstruida ? `<p class="recuadro"><strong>Cartera reconstruida desde el ${f.fecha(c.fecha_inicio)}.</strong> ${avisoSupervivencia()}</p>` : ""}
     <div class="encabezado">
       <div><h1>${f.html(c.nombre)}</h1>
-        <p class="subtitulo">Creada el ${f.fecha(c.fecha_inicio)} · capital inicial ${f.eurEntero(c.capital_inicial)} · valorada en euros${compartida ? ` · ${compartida}` : ""}</p></div>
+        <p class="subtitulo">Creada el ${f.fecha(c.fecha_inicio)} · capital inicial ${f.eurEntero(c.capital_inicial)}${enDolares ? ` (${dineroEntero(capital)} al cambio de ese día)` : ""} · valorada en ${enDolares ? "dólares" : "euros"}${compartida ? ` · ${compartida}` : ""}</p></div>
       <div class="fila">
         <button class="boton linea" id="exportar" type="button">Exportar CSV</button>
         <button class="boton linea" id="apuntar-cartera" type="button">✎ Apuntar</button>
@@ -88,12 +105,12 @@ export async function vistaCartera({ actual, partes }) {
     </div>
 
     ${kpis([
-      { etiqueta: "Valor", valor: f.eurEntero(total), nota: `${f.eurSigno(r.hoyEur)} hoy (${f.pctSigno(total - r.hoyEur ? r.hoyEur / (total - r.hoyEur) : null)})` },
-      { etiqueta: "Rentabilidad", valor: f.pctSigno(rentEur / c.capital_inicial), clase: f.claseSigno(rentEur), nota: `${f.eurSigno(rentEur)} sobre lo aportado` },
-      { etiqueta: "Efectivo", valor: f.eurEntero(estado.efectivo), nota: `${f.num(total ? (estado.efectivo / total) * 100 : 0, 1)} % de la cartera` },
-      { etiqueta: "Dividendos", valor: f.eurEntero(estado.dividendosEur), nota: `${f.cantidad(cobrosAnio.length, "cobro")} en ${anio}` },
-      { etiqueta: "Ajustes y comisiones", valor: f.eurSigno(estado.ajustesEur - estado.comisionesEur),
-        nota: `ajustes ${f.eurSigno(estado.ajustesEur)} · comisiones ${f.eurEntero(estado.comisionesEur)}` },
+      { etiqueta: "Valor", valor: dineroEntero(total), nota: `${dineroSigno(en(r, "hoy"))} hoy (${f.pctSigno(total - en(r, "hoy") ? en(r, "hoy") / (total - en(r, "hoy")) : null)})` },
+      { etiqueta: "Rentabilidad", valor: f.pctSigno(rent / capital), clase: f.claseSigno(rent), nota: `${dineroSigno(rent)} sobre lo aportado` },
+      { etiqueta: "Efectivo", valor: dineroEntero(efectivo), nota: `${f.num(total ? (efectivo / total) * 100 : 0, 1)} % de la cartera` },
+      { etiqueta: "Dividendos", valor: dineroEntero(en(estado, "dividendos")), nota: `${f.cantidad(cobrosAnio.length, "cobro")} en ${anio}` },
+      { etiqueta: "Ajustes y comisiones", valor: dineroSigno(en(estado, "ajustes") - en(estado, "comisiones")),
+        nota: `ajustes ${dineroSigno(en(estado, "ajustes"))} · comisiones ${dineroEntero(en(estado, "comisiones"))}` },
     ])}
 
     <div class="columnas estirar">
@@ -118,18 +135,18 @@ export async function vistaCartera({ actual, partes }) {
       <div class="fila entre" style="align-items:baseline"><h2>Posiciones</h2>
         <span class="aviso">${valoracion.posiciones.length} valores · dólares al tipo del BCE (${f.num(r.cambio?.valor, 4)} $/€)</span></div>
       ${valoracion.posiciones.length ? tabla(
-        ["Valor", "Títulos", "Coste medio", "Último", "Valor en €", { texto: "Peso", izq: true }, "Rentab."],
+        ["Valor", "Títulos", "Coste medio", "Último", `Valor en ${enDolares ? "$" : "€"}`, { texto: "Peso", izq: true }, "Rentab."],
         [...valoracion.posiciones].sort((a, b) => (b.valorEur ?? 0) - (a.valorEur ?? 0)).map((p) => {
-          const peso = total ? (p.valorEur ?? 0) / total : 0;
+          const peso = total ? (en(p, "valor") ?? 0) / total : 0;
           return `<tr class="clicable" data-simbolo="${f.html(p.simbolo)}">
             <td><strong>${f.html(p.simbolo)}</strong><span class="nombre">${f.html(fichas[p.simbolo]?.nombre ?? "")}</span></td>
-            <td>${f.titulos(p.titulos)}</td><td>${f.eur(p.costeEur / p.titulos)}</td>
-            <td>${f.precio(p.precio, r.divisas[p.simbolo])}</td><td><strong>${f.eurEntero(p.valorEur)}</strong></td>
+            <td>${f.titulos(p.titulos)}</td><td>${dinero(en(p, "coste") / p.titulos)}</td>
+            <td>${f.precio(p.precio, r.divisas[p.simbolo])}</td><td><strong>${dineroEntero(en(p, "valor"))}</strong></td>
             <td class="izq"><span class="peso"><span class="barra"><span style="width:${(peso * 100).toFixed(1)}%"></span></span><span class="num">${f.num(peso * 100, 1)} %</span></span></td>
-            <td class="${f.claseSigno(p.plusvaliaEur)}" title="${f.eurSigno(p.plusvaliaEur)}"><strong>${f.pctSigno(p.plusvaliaPct)}</strong></td></tr>`;
+            <td class="${f.claseSigno(en(p, "plusvalia"))}" title="${dineroSigno(en(p, "plusvalia"))}"><strong>${f.pctSigno(en(p, "plusvaliaPct"))}</strong></td></tr>`;
         }),
-        { pie: `<tfoot class="pie-tabla"><tr><td><strong>Efectivo</strong></td><td></td><td></td><td></td><td><strong>${f.eurEntero(estado.efectivo)}</strong></td>
-          <td class="izq"><span class="peso"><span class="barra"><span style="width:${total ? ((estado.efectivo / total) * 100).toFixed(1) : 0}%;background:var(--gris-3)"></span></span><span class="num">${f.num(total ? (estado.efectivo / total) * 100 : 0, 1)} %</span></span></td><td></td></tr></tfoot>` })
+        { pie: `<tfoot class="pie-tabla"><tr><td><strong>Efectivo</strong></td><td></td><td></td><td></td><td><strong>${dineroEntero(efectivo)}</strong></td>
+          <td class="izq"><span class="peso"><span class="barra"><span style="width:${total ? ((efectivo / total) * 100).toFixed(1) : 0}%;background:var(--gris-3)"></span></span><span class="num">${f.num(total ? (efectivo / total) * 100 : 0, 1)} %</span></span></td><td></td></tr></tfoot>` })
         : `<p class="vacio">Sin posiciones: todo el capital está en efectivo.${esMiembro ? ` <a href="${enlaceOperar(c)}">Hacer la primera compra</a>.` : ""}</p>`}
     </section>
 
@@ -172,7 +189,7 @@ export async function vistaCartera({ actual, partes }) {
     const desde = anios ? new Date(Date.now() - anios * 365.25 * 86400000).toISOString().slice(0, 10) : c.fecha_inicio;
     const tramo = r.serie.filter((p) => p.fecha >= desde);
     const fechas = tramo.map((p) => p.fecha);
-    const series = [{ nombre: c.nombre, valores: base100(tramo.map((p) => p.totalEur)) }];
+    const series = [{ nombre: c.nombre, valores: base100(tramo.map((p) => en(p, "total"))) }];
     if (comparar) {
       sesionesIndice[comparar] ??= await datos.sesionesIndice(comparar, Number(c.fecha_inicio.slice(0, 4)), new Date().getUTCFullYear());
       const s = sesionesIndice[comparar];
@@ -198,10 +215,10 @@ export async function vistaCartera({ actual, partes }) {
       const d = describirMovimiento(m);
       const quien = m.tipo === "compra" || m.tipo === "venta" ? ` · ${f.html(autorOperacion(m, c))}` : "";
       return `<div><span class="suave">${f.fecha(m.fecha)}</span><span><span class="etiqueta-tipo">${f.html(d.tipo)}</span></span>
-        <span style="min-width:0">${f.html(d.texto)}<span class="suave">${quien}${m.comisionEur ? ` · comisión ${f.eur(m.comisionEur)}` : ""}</span></span>
-        <strong class="num ${m.tipo === "dividendo" || m.tipo === "ajuste" ? "sube" : ""}">${m.importeEur ? f.eurSigno(m.importeEur) : "—"}</strong></div>`;
+        <span style="min-width:0">${f.html(d.texto)}<span class="suave">${quien}${m.comisionEur ? ` · comisión ${dinero(en(m, "comision"))}` : ""}</span></span>
+        <strong class="num ${m.tipo === "dividendo" || m.tipo === "ajuste" ? "sube" : ""}">${m.importeEur ? dineroSigno(en(m, "importe")) : "—"}</strong></div>`;
     }).join("")}<div><span class="suave">${f.fecha(c.fecha_inicio)}</span><span><span class="etiqueta-tipo">Aportación</span></span>
-      <span>Capital inicial de la cartera</span><strong class="num">${f.eurSigno(c.capital_inicial)}</strong></div></div>`
+      <span>Capital inicial de la cartera</span><strong class="num">${dineroSigno(capital)}</strong></div></div>`
       : `<p class="vacio">No hay movimientos de este tipo.</p>`;
   };
   alElegir(document, "filtro", pintarMovimientos);

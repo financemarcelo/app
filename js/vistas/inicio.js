@@ -7,13 +7,14 @@ import * as f from "../formato.js";
 import { minigrafico } from "../graficos.js";
 import { variacion, dividendosEstimados, PLAZAS, estadoSesion } from "../calculos.js";
 import { enlaceCartera, etiquetaCompartida, describirMovimiento, textoVariacion } from "./comun.js";
+import { en, dineroEntero, dineroSigno, dineroAproximado } from "../moneda.js";
 
 export async function vista({ actual }) {
   const [calculadas, valores, cotizaciones, cambio] = await Promise.all([
     todasLasCarteras(), datos.listaValores(), datos.cotizaciones(), datos.tipoCambioActual()]);
-  const total = calculadas.reduce((s, r) => s + r.valoracion.totalEur, 0);
-  const aportado = calculadas.reduce((s, r) => s + r.cartera.capital_inicial, 0);
-  const hoyEur = calculadas.reduce((s, r) => s + r.hoyEur, 0);
+  const total = calculadas.reduce((s, r) => s + en(r.valoracion, "total"), 0);
+  const aportado = calculadas.reduce((s, r) => s + en(r, "capital"), 0);
+  const hoy = calculadas.reduce((s, r) => s + en(r, "hoy"), 0);
   const anio = new Date().getFullYear();
   const movimientos = movimientosDe(calculadas);
   const dividendosAnio = movimientos.filter((m) => m.tipo === "dividendo" && m.fecha.startsWith(`${anio}-`));
@@ -50,31 +51,31 @@ export async function vista({ actual }) {
     </div>
 
     ${kpis([
-      { etiqueta: "Patrimonio total", valor: f.eurEntero(total), nota: `${calculadas.length} ${calculadas.length === 1 ? "cartera" : "carteras"}` },
-      { etiqueta: "Hoy", valor: f.eurSigno(hoyEur), clase: f.claseSigno(hoyEur), nota: `${f.pctSigno(total - hoyEur ? hoyEur / (total - hoyEur) : null)} desde el cierre anterior` },
-      { etiqueta: "Rentabilidad total", valor: f.pctSigno(aportado ? total / aportado - 1 : null), clase: f.claseSigno(total - aportado), nota: `sobre ${f.eurEntero(aportado)} aportados` },
-      { etiqueta: `Dividendos ${anio}`, valor: f.eurEntero(dividendosAnio.reduce((s, m) => s + m.importeEur, 0)), nota: f.cantidad(dividendosAnio.length, "cobro") },
+      { etiqueta: "Patrimonio total", valor: dineroEntero(total), nota: `${calculadas.length} ${calculadas.length === 1 ? "cartera" : "carteras"}` },
+      { etiqueta: "Hoy", valor: dineroSigno(hoy), clase: f.claseSigno(hoy), nota: `${f.pctSigno(total - hoy ? hoy / (total - hoy) : null)} desde el cierre anterior` },
+      { etiqueta: "Rentabilidad total", valor: f.pctSigno(aportado ? total / aportado - 1 : null), clase: f.claseSigno(total - aportado), nota: `sobre ${dineroEntero(aportado)} aportados` },
+      { etiqueta: `Dividendos ${anio}`, valor: dineroEntero(dividendosAnio.reduce((s, m) => s + en(m, "importe"), 0)), nota: f.cantidad(dividendosAnio.length, "cobro") },
     ])}
 
     <div class="columnas">
       <section class="principal">
         <div class="fila entre" style="align-items:baseline"><h2>Mis carteras</h2><a href="#/carteras/nueva" style="font-weight:600;font-size:14px">+ Nueva cartera</a></div>
         ${calculadas.length ? calculadas.map((r) => {
-          const rent = r.valoracion.totalEur / r.cartera.capital_inicial - 1;
+          const rent = en(r.valoracion, "total") / en(r, "capital") - 1;
           const compartida = etiquetaCompartida(r.cartera);
           return `<a class="tarjeta-cartera" href="${enlaceCartera(r.cartera)}">
             <span class="pila" style="gap:4px;min-width:0"><strong style="font-size:17px">${f.html(r.cartera.nombre)}</strong>
               <span class="suave" style="font-size:13px">${Object.keys(r.estado.posiciones).length} valores · desde ${f.fecha(r.cartera.fecha_inicio)}${compartida ? ` · ${compartida}` : ""}</span></span>
-            <span class="pila" style="gap:0;align-items:flex-end"><strong class="num" style="font-size:20px">${f.eurEntero(r.valoracion.totalEur)}</strong>
+            <span class="pila" style="gap:0;align-items:flex-end"><strong class="num" style="font-size:20px">${dineroEntero(en(r.valoracion, "total"))}</strong>
               <span class="${f.claseSigno(rent)}" style="font-size:13px;font-weight:600">${f.pctSigno(rent)}</span></span>
-            ${minigrafico((r.serie ?? []).map((p) => p.totalEur))}</a>`;
+            ${minigrafico((r.serie ?? []).map((p) => en(p, "total")))}</a>`;
         }).join("") : `<div class="panel"><p class="vacio">Todavía no tienes carteras.</p><div><a class="boton" href="#/carteras/nueva">Crear mi primera cartera</a></div></div>`}
 
         <h2 style="margin-top:8px">Actividad reciente</h2>
         ${movimientos.length ? `<div class="lista">${movimientos.slice(0, 8).map((m) => `<div>
           <span class="suave">${f.fechaCorta(m.fecha)}</span>
           <span><strong>${f.html(describirMovimiento(m).tipo)}</strong> · ${f.html(describirMovimiento(m).texto)} <span class="suave">en ${f.html(m.cartera.nombre)}</span></span>
-          <span class="num" style="font-weight:600">${m.importeEur ? f.eurSigno(m.importeEur) : "—"}</span></div>`).join("")}</div>`
+          <span class="num" style="font-weight:600">${m.importeEur ? dineroSigno(en(m, "importe")) : "—"}</span></div>`).join("")}</div>`
           : `<p class="vacio">Sin movimientos todavía.</p>`}
       </section>
 
@@ -95,7 +96,7 @@ export async function vista({ actual }) {
         </section>
         <section class="panel negro">
           <h3 class="titulo-seccion">Próximos dividendos</h3>
-          ${proximos.length ? proximos.map((d) => `<div class="renglon num"><span>${f.fechaCorta(d.fecha)} · ${f.html(d.simbolo)}</span><strong>≈ ${d.importeEur < 100 ? f.eur(d.importeEur) : f.eurEntero(d.importeEur)}</strong></div>`).join("")
+          ${proximos.length ? proximos.map((d) => `<div class="renglon num"><span>${f.fechaCorta(d.fecha)} · ${f.html(d.simbolo)}</span><strong>≈ ${dineroAproximado(en(d, "importe"))}</strong></div>`).join("")
             : `<p class="vacio" style="color:var(--gris-3)">No se esperan dividendos en los próximos tres meses.</p>`}
           <span class="aviso" style="color:var(--gris-3)">Estimados a partir de los del año anterior. <a href="#/dividendos" style="color:inherit">Ver dividendos</a></span>
         </section>

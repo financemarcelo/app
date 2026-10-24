@@ -4,6 +4,7 @@ import {
   db, doc, getDoc, getDocs, setDoc, updateDoc, collection, collectionGroup, addDoc, deleteDoc, writeBatch, query,
   where, orderBy, limit, serverTimestamp, arrayRemove, arrayUnion,
 } from "./firebase.js";
+import { enEscalaDeHoy } from "./calculos.js";
 
 const cache = new Map();
 const CADUCIDAD_MS = 60_000; // cotizaciones y año en curso: se vuelven a leer tras un minuto
@@ -80,6 +81,12 @@ async function serieDiaria(base, desdeAnio, hastaAnio) {
 }
 
 export const sesiones = (simbolo, desdeAnio, hastaAnio) => serieDiaria(`valores/${simbolo}`, desdeAnio, hastaAnio);
+
+/** Sesiones de un valor en la escala de hoy (corregidas por desdoblamientos), para los gráficos. */
+export async function sesionesEnEscalaDeHoy(simbolo, desdeAnio, hastaAnio) {
+  const [s, ficha] = await Promise.all([sesiones(simbolo, desdeAnio, hastaAnio), fichaValor(simbolo)]);
+  return enEscalaDeHoy(s, ficha?.desdoblamientos ?? []);
+}
 export const sesionesIndice = (indice, desdeAnio, hastaAnio) => serieDiaria(`indices/${indice}`, desdeAnio, hastaAnio);
 
 /** Tipo de cambio de referencia del BCE (dólares por euro) entre dos años: {fechas, valores}. */
@@ -203,7 +210,7 @@ export async function borrarCartera(c) {
 
 export const PREFERENCIAS_INICIALES = {
   seguimiento: [], comision: { activa: false, porcentaje: 0.1, minimo: 5, maximo: null },
-  tema: "automatico", variaciones: "porcentaje", inicio: "inicio", densidad: "comoda",
+  tema: "automatico", variaciones: "porcentaje", inicio: "inicio", densidad: "comoda", moneda: "EUR",
 };
 
 const rutaPreferencias = (usuario) => doc(db, "usuarios", usuario.uid, "ajustes", "preferencias");

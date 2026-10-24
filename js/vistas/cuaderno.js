@@ -242,7 +242,7 @@ function notaHtml(n, { esEditor, esPropietario, nombres }) {
 
 async function dibujarGraficoNota(actual, n) {
   const anio = new Date().getUTCFullYear();
-  const s = await datos.sesiones(n.grafico.simbolo, anio - (n.grafico.anios ?? 1), anio);
+  const s = await datos.sesionesEnEscalaDeHoy(n.grafico.simbolo, anio - (n.grafico.anios ?? 1), anio);
   if (!vigente(actual)) return;
   const desde = new Date(Date.now() - (n.grafico.anios ?? 1) * 365.25 * 86400000).toISOString().slice(0, 10);
   const k = Math.max(0, s.fechas.findIndex((x) => x >= desde));
