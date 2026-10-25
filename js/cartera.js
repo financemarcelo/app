@@ -14,8 +14,6 @@
 //   títulos × cierre anterior × (1 − denominador/numerador).
 // - La comisión simulada de una operación (comision_eur) sale del efectivo: en una compra se
 //   suma al coste; en una venta se resta de lo cobrado.
-// - Las operaciones pueden tener fecha pasada: reconstruir() anota en `problema` la primera
-//   que no habría sido posible en su fecha (sin efectivo o sin títulos suficientes).
 
 export function aEuros(importe, divisa, eurusd) {
   if (divisa === "EUR") return importe;
@@ -63,7 +61,7 @@ export function reconstruir({ capitalInicial, operaciones, eventos, divisas, tip
                               hasta = "9999-12-31" }) {
   const estado = { efectivo: capitalInicial, posiciones: {}, dividendosEur: 0, ajustesEur: 0, comisionesEur: 0,
                    resultadoRealizadoEur: 0, dividendosUsd: 0, ajustesUsd: 0, comisionesUsd: 0,
-                   movimientos: [], problema: null };
+                   movimientos: [] };
   const operados = new Set(operaciones.map((o) => o.simbolo));
 
   for (const s of sucesos(operaciones, eventos, operados)) {
@@ -72,9 +70,6 @@ export function reconstruir({ capitalInicial, operaciones, eventos, divisas, tip
     const pos = estado.posiciones[simbolo];
 
     if (s.tipo === "compra" || s.tipo === "venta") {
-      const texto = estado.problema ? null : validarOperacion(estado, { tipo: s.tipo, simbolo, titulos: s.op.titulos,
-        importeEur: s.op.importe_eur, comisionEur: s.op.comision_eur ?? 0 });
-      if (texto) estado.problema = { fecha: s.fecha, op: s.op, texto };
       aplicarOperacion(estado, s.op);
     } else if (!pos || pos.titulos <= 0) {
       continue; // el evento no afecta a quien no tiene títulos
