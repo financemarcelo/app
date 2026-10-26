@@ -46,7 +46,7 @@ export function textoVariacion(cot, decimales = 2) {
 
 /** Aviso del sesgo de supervivencia de las carteras que empiezan en el pasado. */
 export function avisoSupervivencia() {
-  return "La lista de valores es la composición actual del IBEX 35 y del Dow Jones: faltan las empresas que estaban "
-    + "en los índices en esa fecha y salieron después (sesgo de supervivencia), así que las rentabilidades pasadas "
-    + "tienden a salir mejores que las reales.";
+  return "La lista de valores es la de hoy (mercado continuo español y Dow Jones): faltan las empresas que cotizaban "
+    + "en esa fecha y después dejaron la bolsa o el Dow Jones (sesgo de supervivencia), así que las rentabilidades "
+    + "pasadas tienden a salir mejores que las reales.";
 }

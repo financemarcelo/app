@@ -6,7 +6,7 @@ import { todasLasCarteras } from "../resumen.js";
 import { $, pintar, kpis, segmentado, alElegir, vigente, intentar } from "../ui.js";
 import * as f from "../formato.js";
 import { dibujarLinea } from "../graficos.js";
-import { plazaDe, estadoSesion, variacion, sector } from "../calculos.js";
+import { plazaDe, grupoDe, estadoSesion, variacion, sector } from "../calculos.js";
 import { enlaceCartera, enlaceOperar } from "./comun.js";
 import { en } from "../moneda.js";
 import { abrirApuntar } from "./apuntar.js";
@@ -22,8 +22,8 @@ export async function vista({ actual, partes }) {
   const c = cotizaciones[simbolo] ?? {};
   const v = variacion(c);
   const e = estad.valores[simbolo] ?? {};
-  const plaza = plazaDe(ficha.indice);
-  const indice = ficha.indice === "DJIA" ? "Dow Jones" : "IBEX 35";
+  const plaza = plazaDe(ficha);
+  const grupo = grupoDe(ficha);
   const moneda = ficha.divisa === "USD" ? "$" : "€";
   const anioActual = new Date().getFullYear();
   const rentAnual = Object.entries(e.rent_anual ?? {}).slice(-ANIOS_BARRAS);
@@ -34,7 +34,7 @@ export async function vista({ actual, partes }) {
 
   if (!pintar(actual, `
     <div class="pila" style="gap:14px">
-      <span class="miga"><a href="#/mercado">Mercado</a> / <a href="#/mercado?pestana=${ficha.indice}">${indice}</a> / ${f.html(ficha.nombre)}</span>
+      <span class="miga"><a href="#/mercado">Mercado</a> / <a href="#/mercado?pestana=${grupo.id}">${grupo.nombre}</a> / ${f.html(ficha.nombre)}</span>
       <div class="encabezado">
         <div class="pila" style="gap:8px"><h1>${f.html(ficha.nombre)}</h1>
           <div class="fila" style="gap:6px">${[ficha.simbolo, `ISIN ${ficha.isin}`, plaza.ciudad, ficha.divisa === "USD" ? "Dólar" : "Euro", sector(ficha.sector)]

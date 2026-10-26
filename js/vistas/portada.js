@@ -34,7 +34,8 @@ const PROPOSITO = [
 ];
 const MERCADOS = [
   { ciudad: "Madrid", indice: "IBEX 35", clase: "background:var(--acento);color:#fff", filas: [
-    ["Valores", "Los 35 más negociados de la Bolsa española"], ["Divisa", "Euro"], ["Sesión", "De 9:00 a 17:30"],
+    ["Valores", "Todo el mercado continuo, unos 120; el IBEX 35 reúne los 35 más negociados"], ["Divisa", "Euro"],
+    ["Sesión", "De 9:00 a 17:30"],
     ["Pondera por", "Capitalización bursátil ajustada por capital flotante"],
     ["Base", "3.000 puntos el 29 de diciembre de 1989"], ["Revisión", "Comité Asesor Técnico, en junio y diciembre"]] },
   { ciudad: "Nueva York", indice: "Dow Jones", clase: "background:var(--fuerte);color:var(--sobre-fuerte)", filas: [
@@ -66,7 +67,7 @@ const LIMITACIONES = [
   "Las cotizaciones llegan con unos 15 minutos de retraso.",
   "Los dividendos se cuentan en bruto: no se descuentan impuestos.",
   "Las operaciones no mueven el precio, aunque sean muy grandes.",
-  "Solo incluye los 65 valores actuales de los dos índices.",
+  "Solo incluye los valores que cotizan hoy: los del mercado continuo y los 30 del Dow Jones.",
   "Es una herramienta de estudio: no es asesoramiento financiero.",
 ];
 
@@ -95,7 +96,7 @@ export function vista({ mensaje } = {}) {
       <div class="pila" style="gap:22px">
         <span class="numero" style="text-transform:uppercase;letter-spacing:.06em;font-size:13px">§0 · Resumen</span>
         <h1>Un laboratorio para poner a prueba ideas sobre la bolsa.</h1>
-        <p style="margin:0;font-size:19px;line-height:1.6;max-width:540px">Carteras artificiales con acciones reales del IBEX 35 y del Dow Jones. Precios de verdad, dinero imaginario y un cuaderno para anotar cada hipótesis y lo que salió.</p>
+        <p style="margin:0;font-size:19px;line-height:1.6;max-width:540px">Carteras artificiales con acciones reales de la Bolsa española y del Dow Jones. Precios de verdad, dinero imaginario y un cuaderno para anotar cada hipótesis y lo que salió.</p>
         <div class="fila"><button class="boton" data-entrar type="button">Entrar con Google</button>
           <a class="boton linea" href="#metodo" style="background:var(--superficie)">Leer el método</a></div>
         <p class="error" id="error-acceso" ${mensaje ? "" : "hidden"}>${mensaje ?? ""}</p>
@@ -125,7 +126,7 @@ export function vista({ mensaje } = {}) {
 
   <section class="ancho-portada">
     <div class="kpis" style="border-top:0">
-      ${[["65", "valores: 35 del IBEX y 30 del Dow Jones"], ["2", "bolsas: Madrid y Nueva York"],
+      ${[["≈150", "valores: el mercado continuo y los 30 del Dow Jones"], ["2", "bolsas: Madrid y Nueva York"],
          ["2006", "primer año con precios diarios"], ["15 min", "entre cotizaciones, en horario de mercado"]]
         .map(([c, t]) => `<div class="kpi"><span class="valor" style="font-size:36px;font-weight:800">${c}</span><span class="mono suave" style="font-size:12px">${t}</span></div>`).join("")}
     </div>

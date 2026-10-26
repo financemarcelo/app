@@ -5,6 +5,7 @@ import { sesion, puedeUsar, administrador, cargarPreferencias, aplicarPresentaci
 import { $, $$, pintar, inicial, mensajeError } from "./ui.js";
 import { invalidar } from "./resumen.js";
 import * as f from "./formato.js";
+import { grupoDe } from "./calculos.js";
 import { enlaceValor } from "./vistas/comun.js";
 import * as portada from "./vistas/portada.js";
 import * as pendiente from "./vistas/pendiente.js";
@@ -125,7 +126,7 @@ buscar.addEventListener("input", async () => {
   const encontrados = lista.filter((v) => [v.simbolo, v.nombre, v.isin].some((x) => (x ?? "").toLowerCase().includes(texto))).slice(0, 8);
   resultados.innerHTML = encontrados.length
     ? encontrados.map((v, i) => `<a href="${enlaceValor(v.simbolo)}" class="${i ? "" : "marcado"}"><span><strong>${f.html(v.simbolo)}</strong>
-        ${f.html(v.nombre)}</span><span class="suave">${v.indice === "DJIA" ? "Dow Jones" : "IBEX 35"}</span></a>`).join("")
+        ${f.html(v.nombre)}</span><span class="suave">${grupoDe(v).nombre}</span></a>`).join("")
     : `<p class="vacio" style="padding:10px 12px;margin:0">Sin resultados.</p>`;
   resultados.hidden = false;
 });

@@ -1,10 +1,10 @@
-// Mercado: estado de las bolsas, índice elegido con su gráfico, lista y mapa de los 65 valores.
+// Mercado: estado de las bolsas, índice elegido con su gráfico, lista y mapa de los valores.
 import * as datos from "../datos.js";
 import { sesion, enSeguimiento, alternarSeguimiento } from "../sesion.js";
 import { $, pintar, kpis, segmentado, alElegir, tabla, rango52, vigente, intentar } from "../ui.js";
 import * as f from "../formato.js";
 import { dibujarLinea } from "../graficos.js";
-import { PLAZAS, estadoSesion, variacion, sector } from "../calculos.js";
+import { PLAZAS, GRUPOS, plazaDe, indicesDe, grupoDe, enPestana, estadoSesion, variacion, sector } from "../calculos.js";
 import { enlaceValor, enlaceOperar, textoVariacion } from "./comun.js";
 
 const RANGOS = [["1M", 1 / 12], ["6M", 0.5], ["1A", 1], ["5A", 5], ["10A", 10], ["Desde 2006", 25]];
@@ -25,7 +25,7 @@ export async function vista({ actual, consulta }) {
   const cambioAnterior = serieCambio.valores.at(-2);
   const madrid = estadoSesion(PLAZAS.madrid), ny = estadoSesion(PLAZAS.nuevayork);
   const horas = Object.values(cotizaciones).map((c) => c.hora).sort();
-  const cuenta = (indice) => valores.filter((v) => v.indice === indice).length;
+  const cuenta = (id) => valores.filter((v) => enPestana(v, id)).length;
 
   if (!pintar(actual, `
     <div class="encabezado">
@@ -39,7 +39,7 @@ export async function vista({ actual, consulta }) {
       { etiqueta: "Tu seguimiento", valor: f.pctSigno(mediaSeguimiento), clase: f.claseSigno(mediaSeguimiento), nota: `variación media de hoy · ${f.cantidad(seguimiento.length, "valor", "valores")}` },
     ])}
     <nav class="pestanas" aria-label="Mercado">
-      ${[["todos", `Todos · ${valores.length}`], ["IBEX35", `IBEX 35 · ${cuenta("IBEX35")}`], ["DJIA", `Dow Jones · ${cuenta("DJIA")}`],
+      ${[["todos", `Todos · ${valores.length}`], ...GRUPOS.map((g) => [g.id, `${g.nombre} · ${cuenta(g.id)}`]),
          ["seguimiento", `En seguimiento · ${seguimiento.length}`]]
         .map(([id, texto]) => `<a href="#/mercado?pestana=${id}" class="${id === pestana ? "activo" : ""}">${texto}</a>`).join("")}
     </nav>
@@ -56,8 +56,10 @@ export async function vista({ actual, consulta }) {
   const panelIndices = () => {
     const contenedor = $("#indices");
     if (pestana === "seguimiento") { contenedor.innerHTML = ""; return; }
-    const visibles = indices.filter((i) => pestana === "todos" || i.indice === pestana);
-    if (visibles.length !== 1) {
+    // En el mercado continuo, el índice de Madrid en pequeño.
+    const visibles = indices.filter((i) => pestana === "todos" || i.indice === pestana
+      || (pestana === "continuo" && plazaDe(i) === PLAZAS.madrid));
+    if (visibles.length !== 1 || pestana === "continuo") {
       contenedor.innerHTML = `<div class="kpis">${visibles.map((i) => {
         const c = cotIndices[i.indice] ?? {}, v = variacion(c);
         return `<a class="kpi clicable" href="#/mercado?pestana=${i.indice}" style="text-decoration:none">
@@ -69,8 +71,8 @@ export async function vista({ actual, consulta }) {
     }
     const i = visibles[0];
     const c = cotIndices[i.indice] ?? {}, v = variacion(c), e = estad.indices[i.indice] ?? {};
-    const sesionPlaza = estadoSesion(i.indice === "DJIA" ? PLAZAS.nuevayork : PLAZAS.madrid);
-    const miembrosIndice = valores.filter((x) => x.indice === i.indice).map((x) => variacion(cotizaciones[x.simbolo]));
+    const sesionPlaza = estadoSesion(plazaDe(i));
+    const miembrosIndice = valores.filter((x) => indicesDe(x).includes(i.indice)).map((x) => variacion(cotizaciones[x.simbolo]));
     const suben = miembrosIndice.filter((x) => x > 0).length, bajan = miembrosIndice.filter((x) => x < 0).length;
     const iguales = miembrosIndice.length - suben - bajan;
     const pct = (n) => (miembrosIndice.length ? (n / miembrosIndice.length) * 100 : 0).toFixed(1);
@@ -115,8 +117,7 @@ export async function vista({ actual, consulta }) {
   };
 
   // ── Valores ──
-  const visibles = () => valores.filter((v) => (pestana === "todos" || pestana === v.indice
-    || (pestana === "seguimiento" && seguimiento.includes(v.simbolo))));
+  const visibles = () => valores.filter((v) => (pestana === "seguimiento" ? seguimiento.includes(v.simbolo) : enPestana(v, pestana)));
   const pintarSectores = () => {
     const nombres = [...new Set(visibles().map((v) => sector(v.sector)))].sort((a, b) => a.localeCompare(b, "es"));
     if (estadoVista.sector && !nombres.includes(estadoVista.sector)) estadoVista.sector = "";
@@ -136,7 +137,11 @@ export async function vista({ actual, consulta }) {
       return;
     }
     if (estadoVista.vista === "mapa") {
-      const grupos = pestana === "todos" ? indices.map((i) => [i.nombre, lista.filter((v) => v.indice === i.indice)]) : [["", lista]];
+      // En «todos» y en el mercado continuo, por grupos: IBEX 35, resto del continuo y Dow Jones.
+      const grupos = pestana === "todos" || pestana === "continuo"
+        ? [...GRUPOS.map((g) => [g.resto ?? g.nombre, lista.filter((v) => grupoDe(v) === g)]),
+           ["Otros valores", lista.filter((v) => !GRUPOS.includes(grupoDe(v)))]]
+        : [["", lista]];
       contenedor.innerHTML = `<div class="pila"><div class="escala">−2 % <i style="background:#c2410c"></i><i style="background:#fdba74"></i>
           <i style="background:var(--linea)"></i><i style="background:#93c5fd"></i><i style="background:#1d4ed8"></i> +2 %</div>
         ${grupos.filter(([, g]) => g.length).map(([titulo, g]) => `${titulo ? `<span class="etiqueta">${f.html(titulo)} · variación del día</span>` : ""}

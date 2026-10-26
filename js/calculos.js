@@ -18,7 +18,7 @@ const SECTORES = {
   Utilities: "Servicios públicos",
 };
 
-export const sector = (nombre) => SECTORES[nombre] ?? nombre ?? "Otros";
+export const sector = (nombre) => SECTORES[nombre] ?? (nombre || "Otros");
 
 // ── Bolsas ───────────────────────────────────────────────────────────────────
 
@@ -28,8 +28,35 @@ export const PLAZAS = {
                cierra: [16, 0] },
 };
 
-/** Plaza de un valor o de un índice según el índice al que pertenece. */
-export const plazaDe = (indice) => (indice === "DJIA" ? PLAZAS.nuevayork : PLAZAS.madrid);
+/** Plaza de un valor o de un índice según su divisa: los de dólares cotizan en Nueva York. */
+export const plazaDe = (ficha) => (ficha?.divisa === "USD" ? PLAZAS.nuevayork : PLAZAS.madrid);
+
+// ── Índices y grupos de valores ──────────────────────────────────────────────
+
+/** Índices de un valor (p. ej. ["IBEX35"]); lee también las fichas con un solo `indice`. */
+export const indicesDe = (v) => v?.indices ?? (v?.indice ? [v.indice] : []);
+
+/** Grupos de las listas de valores, en orden: `resto` los nombra junto al IBEX 35. */
+export const GRUPOS = [
+  { id: "IBEX35", nombre: "IBEX 35" },
+  { id: "continuo", nombre: "Mercado continuo", resto: "Resto del mercado continuo" },
+  { id: "DJIA", nombre: "Dow Jones" },
+];
+
+/** Grupo de un valor: su índice o, si no está en ninguno, su mercado. */
+export function grupoDe(v) {
+  const indices = indicesDe(v);
+  if (indices.includes("IBEX35")) return GRUPOS[0];
+  if (indices.includes("DJIA")) return GRUPOS[2];
+  return plazaDe(v) === PLAZAS.madrid ? GRUPOS[1] : { id: "todos", nombre: plazaDe(v).nombre };
+}
+
+/** Si un valor sale en una pestaña del mercado: todos, el mercado continuo o un índice. */
+export function enPestana(v, pestana) {
+  if (pestana === "todos") return true;
+  if (pestana === "continuo") return plazaDe(v) === PLAZAS.madrid;
+  return indicesDe(v).includes(pestana);
+}
 
 /** Fecha (AAAA-MM-DD), día de la semana (0 = domingo), hora y minuto de un instante en una zona. */
 export function enZona(instante, zona) {
@@ -87,7 +114,7 @@ export function variacion(cot) {
  * Reparto del valor de una cartera por mercado, sector y divisa.
  * @param {Array} posiciones  de valorar(): {simbolo, valorEur}
  * @param {number} efectivo   euros
- * @param {object} fichas     {simbolo: {indice, sector, divisa}}
+ * @param {object} fichas     {simbolo: {sector, divisa}}
  */
 export function reparto(posiciones, efectivo, fichas) {
   const total = posiciones.reduce((s, p) => s + (p.valorEur ?? 0), 0) + efectivo;
@@ -103,7 +130,7 @@ export function reparto(posiciones, efectivo, fichas) {
   };
   return {
     total,
-    mercado: agrupar((f) => plazaDe(f.indice).ciudad),
+    mercado: agrupar((f) => plazaDe(f).ciudad),
     sector: agrupar((f) => sector(f.sector)),
     divisa: agrupar((f) => (f.divisa === "USD" ? "Dólar" : "Euro")).map((g) => (g.efectivo ? { ...g, nombre: "Euro (efectivo)" } : g)),
   };

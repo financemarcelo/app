@@ -1,11 +1,28 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { sector, PLAZAS, estadoSesion, instanteEnZona, enZona, horaPeninsular, variacion, reparto,
+import { sector, PLAZAS, plazaDe, indicesDe, grupoDe, enPestana, GRUPOS, estadoSesion, instanteEnZona, enZona, horaPeninsular, variacion, reparto,
          dividendosEstimados, porMes, base100, alinear, aCsv, enEscalaDeHoy } from "../js/calculos.js";
 
 test("sectores en español", () => {
   assert.equal(sector("Information Technology"), "Tecnología");
   assert.equal(sector("Desconocido"), "Desconocido");
+  assert.equal(sector(""), "Otros");
+});
+
+test("plaza, índices y grupo de un valor", () => {
+  const san = { simbolo: "SAN.MC", divisa: "EUR", indices: ["IBEX35"] };
+  const fcc = { simbolo: "FCC.MC", divisa: "EUR", indices: [] };
+  const aapl = { simbolo: "AAPL", divisa: "USD", indices: ["DJIA"] };
+  assert.equal(plazaDe(aapl), PLAZAS.nuevayork);
+  assert.equal(plazaDe(fcc), PLAZAS.madrid);
+  assert.equal(plazaDe({ indice: "DJIA", divisa: "USD" }), PLAZAS.nuevayork);   // ficha de un índice
+  assert.deepEqual(indicesDe({ indice: "DJIA" }), ["DJIA"]);
+  assert.deepEqual(indicesDe({}), []);
+  assert.deepEqual([san, fcc, aapl].map((v) => grupoDe(v).id), ["IBEX35", "continuo", "DJIA"]);
+  assert.equal(grupoDe(san), GRUPOS[0]);
+  assert.equal(grupoDe({ divisa: "USD", indices: [] }).nombre, "Bolsa de Nueva York");
+  assert.deepEqual(["todos", "continuo", "IBEX35", "DJIA"].map((p) => [san, fcc, aapl].filter((v) => enPestana(v, p)).length),
+                   [3, 2, 1, 1]);
 });
 
 test("instante de una hora local con cambio de hora", () => {
@@ -38,8 +55,8 @@ test("variación del día", () => {
 });
 
 test("reparto por mercado, sector y divisa", () => {
-  const fichas = { "SAN.MC": { indice: "IBEX35", sector: "Financials", divisa: "EUR" },
-                   AAPL: { indice: "DJIA", sector: "Information Technology", divisa: "USD" } };
+  const fichas = { "SAN.MC": { indices: ["IBEX35"], sector: "Financials", divisa: "EUR" },
+                   AAPL: { indices: ["DJIA"], sector: "Information Technology", divisa: "USD" } };
   const r = reparto([{ simbolo: "SAN.MC", valorEur: 600 }, { simbolo: "AAPL", valorEur: 300 }], 100, fichas);
   assert.equal(r.total, 1000);
   assert.deepEqual(r.mercado.map((g) => [g.nombre, g.fraccion]), [["Madrid", 0.6], ["Nueva York", 0.3], ["Efectivo", 0.1]]);
