@@ -6,7 +6,7 @@ import { todasLasCarteras, invalidar } from "../resumen.js";
 import { $, $$, pintar, segmentado, alElegir, mensajeError } from "../ui.js";
 import * as f from "../formato.js";
 import { minigrafico } from "../graficos.js";
-import { plazaDe, estadoSesion, variacion, dividendosEstimados, sector } from "../calculos.js";
+import { plazaDe, grupoDe, GRUPOS, estadoSesion, variacion, dividendosEstimados, sector } from "../calculos.js";
 import { enlaceCartera, enlaceValor } from "./comun.js";
 
 const DIAS_COTIZACION_ANTIGUA = 4;
@@ -28,7 +28,7 @@ export async function vista({ actual, partes, consulta }) {
   const ficha = (s) => valores.find((v) => v.simbolo === s);
   const volver = simbolo && consulta.get("valor") ? `<a class="miga" href="${enlaceValor(simbolo)}">← ${f.html(simbolo)} · ${f.html(ficha(simbolo)?.nombre ?? "")}</a>`
     : `<a class="miga" href="${enlaceCartera(elegida.cartera)}">← ${f.html(elegida.cartera.nombre)}</a>`;
-  const opciones = (indice) => valores.filter((v) => v.indice === indice)
+  const opciones = (grupo) => valores.filter((v) => grupoDe(v) === grupo)
     .map((v) => `<option value="${f.html(v.simbolo)}">${f.html(v.simbolo)} · ${f.html(v.nombre)}</option>`).join("");
 
   if (!pintar(actual, `
@@ -44,8 +44,7 @@ export async function vista({ actual, partes, consulta }) {
           <h2 class="etiqueta" id="paso-valor">2 · Valor</h2>
           <select id="valor" required>
             <option value="">Elige un valor…</option>
-            <optgroup label="IBEX 35">${opciones("IBEX35")}</optgroup>
-            <optgroup label="Dow Jones">${opciones("DJIA")}</optgroup>
+            ${GRUPOS.map((g) => `<optgroup label="${g.resto ?? g.nombre}">${opciones(g)}</optgroup>`).join("")}
           </select>
           <div id="ficha-valor"></div>
         </section>
@@ -90,14 +89,14 @@ export async function vista({ actual, partes, consulta }) {
   const pintarValor = async () => {
     const v = ficha(simbolo);
     const cot = cotizaciones[simbolo];
-    $("#estado-plaza").innerHTML = v ? `<span style="width:8px;height:8px;border-radius:50%;display:inline-block;background:${estadoSesion(plazaDe(v.indice)).abierta ? "var(--sube)" : "var(--gris-2)"}"></span>
-      ${plazaDe(v.indice).ciudad} · ${estadoSesion(plazaDe(v.indice)).texto.toLowerCase()}` : "";
+    $("#estado-plaza").innerHTML = v ? `<span style="width:8px;height:8px;border-radius:50%;display:inline-block;background:${estadoSesion(plazaDe(v)).abierta ? "var(--sube)" : "var(--gris-2)"}"></span>
+      ${plazaDe(v).ciudad} · ${estadoSesion(plazaDe(v)).texto.toLowerCase()}` : "";
     if (!v) { $("#ficha-valor").innerHTML = ""; return; }
     eventosValor = { [simbolo]: (await datos.fichaValor(simbolo)) ?? {} };
     const variacionDia = variacion(cot);
     $("#ficha-valor").innerHTML = `<div class="fila entre" style="background:var(--fondo);padding:16px;gap:16px 24px">
       <div class="pila" style="gap:2px;flex:1 1 180px"><strong style="font-size:18px">${f.html(v.simbolo)} · ${f.html(v.nombre)}</strong>
-        <span class="suave" style="font-size:13px">${plazaDe(v.indice).ciudad} · ${v.divisa === "USD" ? "dólar" : "euro"} · ${v.indice === "DJIA" ? "Dow Jones" : "IBEX 35"} · ${f.html(sector(v.sector))}</span></div>
+        <span class="suave" style="font-size:13px">${plazaDe(v).ciudad} · ${v.divisa === "USD" ? "dólar" : "euro"} · ${grupoDe(v).nombre} · ${f.html(sector(v.sector))}</span></div>
       <div class="pila" style="gap:0;align-items:flex-end"><span class="num" style="font-size:26px;font-weight:700">${f.precio(cot?.precio, v.divisa)}</span>
         <span class="${f.claseSigno(variacionDia)} num" style="font-size:13px;font-weight:700">${f.conSigno(cot ? cot.precio - cot.cierre_anterior : null)} ${v.divisa === "USD" ? "$" : "€"} · ${f.pctSigno(variacionDia)}</span></div>
       <span id="mini"></span></div>`;

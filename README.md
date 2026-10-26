@@ -1,8 +1,8 @@
 # Carteras
 
-Aplicación web para crear carteras artificiales con acciones del IBEX 35 y del Dow Jones
-Industrial Average, compartirlas, operar con ellas, seguir su valor en euros y anotar ideas
-en cuadernos compartidos.
+Aplicación web para crear carteras artificiales con acciones del mercado continuo español
+(entre ellas, las del IBEX 35) y del Dow Jones Industrial Average, compartirlas, operar con
+ellas, seguir su valor en euros y anotar ideas en cuadernos compartidos.
 
 Se publica con GitHub Pages en <https://financemarcelo.github.io/app/>.
 
@@ -30,8 +30,11 @@ Se publica con GitHub Pages en <https://financemarcelo.github.io/app/>.
   al último precio, resumen con la comisión simulada y efecto en la cartera. Se llega desde
   una cartera, desde la ficha de un valor o desde la barra inferior del móvil.
 - **Mercado**: estado de las bolsas de Madrid y Nueva York, tipo euro-dólar, índices con su
-  gráfico y amplitud del día, lista de valores con filtro por índice, sector y seguimiento,
-  orden, rango de 52 semanas, rentabilidad por dividendo y mapa de calor.
+  gráfico y amplitud del día, lista de valores con pestañas (todos, IBEX 35, mercado
+  continuo, Dow Jones y en seguimiento), filtro por sector, orden, rango de 52 semanas,
+  rentabilidad por dividendo y mapa de calor agrupado (IBEX 35, resto del mercado continuo y
+  Dow Jones). Un valor puede pertenecer a varios índices (campo `indices` de su ficha); la
+  bolsa de cada valor sale de su divisa (euros, Madrid; dólares, Nueva York).
 - **Ficha de un valor**: precio y variación del día, gráfico de precio o con dividendos (de
   un mes a desde 2006), rentabilidad por año, cifras clave, posiciones en las carteras,
   dividendos, desdoblamientos y ajustes.

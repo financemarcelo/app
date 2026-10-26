@@ -84,6 +84,7 @@ body {
 a { color: inherit; }
 a:hover { color: var(--acento); }
 button, input, select, textarea { font: inherit; color: inherit; }
+select { max-width: 100%; }   /* las opciones con nombres largos no ensanchan la página */
 :focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
 .num, table { font-variant-numeric: tabular-nums; }
 .sube { color: var(--sube); }
@@ -322,6 +323,7 @@ table.tabla { width: 100%; border-collapse: collapse; font-size: 14px; }
 .redactor { background: var(--superficie); border: 2px solid var(--fuerte); }
 .redactor textarea { border: 0; min-height: 80px; padding: 16px 18px; font-size: 16px; }
 .redactor .herramientas { border-top: 1px solid var(--linea-suave); padding: 10px 12px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+.redactor .herramientas > * { min-width: 0; max-width: 100%; }
 
 /* ── Ventanas ──────────────────────────────────────────────────────────── */
 
